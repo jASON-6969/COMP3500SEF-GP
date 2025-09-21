@@ -1,4 +1,4 @@
-# COMP3500SEF-GP
+# Group 28 COMP3500SEF-GP
 COMP3500SEF group project
 
 # Distributed Inventory and Sales Management System
