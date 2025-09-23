@@ -38,12 +38,14 @@ npm --version
 ### Start the development server
 
 ```bash
+cd frontend
 npm run dev
 ```
 
 or
 
 ```bash
+cd frontend
 npm run serve
 ```
 
