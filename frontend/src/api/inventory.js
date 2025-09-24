@@ -6,8 +6,8 @@ export async function fetchDistinctStores() {
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('name, location')
-    .neq('name', null)
-    .neq('location', null)
+    .not('name', 'is', null)
+    .not('location', 'is', null)
 
   if (error) throw error
 
@@ -34,7 +34,7 @@ export async function fetchProductsByStore(store) {
     .select('product')
     .eq('name', name)
     .eq('location', location)
-    .neq('product', null)
+    .not('product', 'is', null)
 
   if (error) throw error
 
@@ -50,7 +50,7 @@ export async function fetchColorsByStoreAndProduct(store, product) {
     .eq('name', name)
     .eq('location', location)
     .ilike('product', product)
-    .neq('color', null)
+    .not('color', 'is', null)
 
   if (error) throw error
 
@@ -58,15 +58,44 @@ export async function fetchColorsByStoreAndProduct(store, product) {
   return Array.from(set).sort()
 }
 
-export async function fetchQuantitySum(store, product, color) {
+export async function fetchStoragesByStoreProductColor(store, product, color) {
   const { name, location } = store
   const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select('storage')
+    .eq('name', name)
+    .eq('location', location)
+    .ilike('product', product)
+    .ilike('color', color)
+    .not('storage', 'is', null)
+
+  if (error) throw error
+
+  const set = new Set(
+    (data || []).map(r => String(r.storage).trim())
+  )
+  // sort numeric ascending when possible
+  return Array.from(set).sort((a, b) => Number(a) - Number(b))
+}
+
+export async function fetchQuantitySum(store, product, color, storage) {
+  const { name, location } = store
+  let query = supabase
     .from(TABLE_NAME)
     .select('quantity')
     .eq('name', name)
     .eq('location', location)
     .ilike('product', product)
     .ilike('color', color)
+
+  if (storage !== undefined && storage !== null && String(storage).length > 0) {
+    const storageNumber = Number(storage)
+    query = Number.isNaN(storageNumber)
+      ? query.eq('storage', String(storage))
+      : query.eq('storage', storageNumber)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
 
@@ -82,6 +111,7 @@ export default {
   fetchDistinctStores,
   fetchProductsByStore,
   fetchColorsByStoreAndProduct,
+  fetchStoragesByStoreProductColor,
   fetchQuantitySum
 }
 
