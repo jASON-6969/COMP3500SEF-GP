@@ -7,8 +7,7 @@
             <h1 class="text-h4">selling</h1>
           </v-card-title>
           <v-card-text>
-            <p class="text-h6">selling page</p>
-            <p>selling function</p>
+            <InventorySearchPanel @change="onSelectionChange" />
           </v-card-text>
         </v-card>
       </v-col>
@@ -17,8 +16,16 @@
 </template>
 
 <script>
+import InventorySearchPanel from '../components/InventorySearchPanel.vue'
 export default {
-  name: 'SellingPage'
+  name: 'SellingPage',
+  components: { InventorySearchPanel },
+  methods: {
+    onSelectionChange(payload) {
+      // eslint-disable-next-line no-console
+      console.log('Selection changed', payload)
+    }
+  }
 }
 </script>
 
