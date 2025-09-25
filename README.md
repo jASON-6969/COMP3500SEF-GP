@@ -24,6 +24,7 @@ npm --version
 
 2. **Install dependencies**:
    ```bash
+   cd frontend
    npm install
    ```
 
@@ -32,6 +33,9 @@ npm --version
    - Vuetify 3
    - Material Design Icons
    - Vue CLI service
+
+
+##change .env.local.delete into .env.local
 
 ## Development
 
