@@ -107,12 +107,41 @@ export async function fetchQuantitySum(store, product, color, storage) {
   return total
 }
 
+export async function fetchPrice(store, product, color, storage) {
+  const { name, location } = store
+  let query = supabase
+    .from(TABLE_NAME)
+    .select('price')
+    .eq('name', name)
+    .eq('location', location)
+    .ilike('product', product)
+    .ilike('color', color)
+
+  if (storage !== undefined && storage !== null && String(storage).length > 0) {
+    const storageNumber = Number(storage)
+    query = Number.isNaN(storageNumber)
+      ? query.eq('storage', String(storage))
+      : query.eq('storage', storageNumber)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+
+  // 返回第一個找到的價格，如果沒有則返回 null
+  if (data && data.length > 0) {
+    return data[0].price
+  }
+  return null
+}
+
 export default {
   fetchDistinctStores,
   fetchProductsByStore,
   fetchColorsByStoreAndProduct,
   fetchStoragesByStoreProductColor,
-  fetchQuantitySum
+  fetchQuantitySum,
+  fetchPrice
 }
 
 

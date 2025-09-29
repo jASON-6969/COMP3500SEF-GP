@@ -45,7 +45,14 @@
               :headers='headers'
               :items='filteredProducts'
               v-model:sort-by="sortBy"
-            ></v-data-table>
+            >
+              <template #[`item.price`]="{ item }">
+                <span v-if="item.price !== null && item.price !== undefined">
+                  ${{ item.price }}
+                </span>
+                <span v-else>-</span>
+              </template>
+            </v-data-table>
           </v-card-text>
         </v-card>
       </v-col>
@@ -68,6 +75,7 @@ export default {
         {title: 'Color', value: 'color'},
         {title: 'Storage', value: 'storage'},
         {title: 'Stock Quantity', value: 'quantity'},
+        {title: 'Price', value: 'price'},
         {title: 'Store Name', value: 'name'},
         {title: 'Store Location', value: 'location'},
         {title: 'Update Time', value: 'UpdateTime'},

@@ -46,6 +46,8 @@
             <span class="font-weight-bold ml-1">{{ quantityDisplay }}</span>
             <span v-if="selectedStorage" class="ml-4">Storage:</span>
             <span v-if="selectedStorage" class="font-weight-bold ml-1">{{ selectedStorage }}GB</span>
+            <span v-if="price !== null && price !== undefined" class="ml-4">Price:</span>
+            <span v-if="price !== null && price !== undefined" class="font-weight-bold ml-1">${{ price }}</span>
           </div>
         </v-col>
       </v-row>
@@ -58,7 +60,7 @@ import StoreSelector from './StoreSelector.vue'
 import ProductSelector from './ProductSelector.vue'
 import ColorSelector from './ColorSelector.vue'
 import StorageSelector from './StorageSelector.vue'
-import { fetchQuantitySum } from '../api/inventory'
+import { fetchQuantitySum, fetchPrice } from '../api/inventory'
 
 export default {
   name: 'InventorySearchPanel',
@@ -73,6 +75,7 @@ export default {
       loading: false,
       error: '',
       quantity: null,
+      price: null,
       storageOptionsCount: 0,
       activePanel: 0
     }
@@ -108,16 +111,21 @@ export default {
 
       if (!this.selectedStore || !this.selectedProduct || !this.selectedColor) {
         this.quantity = null
+        this.price = null
         return
       }
 
       this.loading = true
       this.error = ''
       try {
-        const qty = await fetchQuantitySum(this.selectedStore, this.selectedProduct, this.selectedColor, this.selectedStorage)
+        const [qty, price] = await Promise.all([
+          fetchQuantitySum(this.selectedStore, this.selectedProduct, this.selectedColor, this.selectedStorage),
+          fetchPrice(this.selectedStore, this.selectedProduct, this.selectedColor, this.selectedStorage)
+        ])
         this.quantity = qty
+        this.price = price
       } catch (err) {
-        this.error = 'Failed to load quantity'
+        this.error = 'Failed to load data'
         // eslint-disable-next-line no-console
         console.error(err)
       } finally {
