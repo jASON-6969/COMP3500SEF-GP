@@ -106,7 +106,8 @@ export default {
       this.$emit('change', {
         store: this.selectedStore,
         product: this.selectedProduct,
-        color: this.selectedColor
+        color: this.selectedColor,
+        storage: this.selectedStorage
       })
 
       if (!this.selectedStore || !this.selectedProduct || !this.selectedColor) {

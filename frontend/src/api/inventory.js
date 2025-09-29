@@ -88,11 +88,14 @@ export async function fetchQuantitySum(store, product, color, storage) {
     .ilike('product', product)
     .ilike('color', color)
 
-  if (storage !== undefined && storage !== null && String(storage).length > 0) {
+  if (storage !== undefined && storage !== null && storage !== '') {
     const storageNumber = Number(storage)
     query = Number.isNaN(storageNumber)
       ? query.eq('storage', String(storage))
       : query.eq('storage', storageNumber)
+  } else {
+    // If no storage specified, match records where storage is null or 0
+    query = query.or('storage.is.null,storage.eq.0')
   }
 
   const { data, error } = await query
@@ -117,11 +120,14 @@ export async function fetchPrice(store, product, color, storage) {
     .ilike('product', product)
     .ilike('color', color)
 
-  if (storage !== undefined && storage !== null && String(storage).length > 0) {
+  if (storage !== undefined && storage !== null && storage !== '') {
     const storageNumber = Number(storage)
     query = Number.isNaN(storageNumber)
       ? query.eq('storage', String(storage))
       : query.eq('storage', storageNumber)
+  } else {
+    // If no storage specified, match records where storage is null or 0
+    query = query.or('storage.is.null,storage.eq.0')
   }
 
   const { data, error } = await query
