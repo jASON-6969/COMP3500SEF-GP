@@ -55,6 +55,16 @@
                 >
                   Checkout
                 </v-btn>
+                <v-btn
+                  class="ml-2"
+                  color="secondary"
+                  size="large"
+                  :disabled="!canSell"
+                  :loading="isAddingToCart"
+                  @click="handleAddToCart"
+                >
+                  Add to Cart
+                </v-btn>
                 <v-alert
                   v-if="sellMessage"
                   :type="sellMessageType"
@@ -64,6 +74,21 @@
                 </v-alert>
               </v-card-text>
             </v-card>
+
+            <!-- Cart Panel at bottom -->
+            <CartPanel
+              :items="cart.items"
+              :loading="isCartProcessing"
+              :estimates="priceEstimates"
+              :total-estimate="totalEstimate"
+              :message="cartMessage"
+              :message-type="cartMessageType"
+              @update-qty="onCartUpdateQty"
+              @remove-item="onCartRemoveItem"
+              @clear="onCartClear"
+              @checkout="onCartCheckout"
+              @refresh-prices="onRefreshEstimates"
+            />
           </v-card-text>
         </v-card>
       </v-col>
@@ -75,11 +100,13 @@
 import InventorySearchPanel from '../components/InventorySearchPanel.vue'
 import { fetchPrice, fetchQuantitySum } from '../api/inventory'
 import { createSale } from '../api/sales'
-import supabase from '../lib/supabase'
+import CartPanel from '../components/CartPanel.vue'
+import { loadCart, addItem as cartAddItem, updateQuantity as cartUpdateQuantity, removeItem as cartRemoveItem, clearCart as cartClear } from '../lib/cart'
+import { sanitizeStorageValue, getInventoryRecordId, deductInventory } from '../lib/inventoryOps'
 
 export default {
   name: 'SellingPage',
-  components: { InventorySearchPanel },
+  components: { InventorySearchPanel, CartPanel },
   data() {
     return {
       selectedItem: null,
@@ -87,9 +114,19 @@ export default {
       customQuantity: 'custom',
       customQuantityValue: 1,
       isSelling: false,
+      isAddingToCart: false,
       sellMessage: '',
-      sellMessageType: 'success'
+      sellMessageType: 'success',
+      cart: { store: null, items: [] },
+      isCartProcessing: false,
+      cartMessage: '',
+      cartMessageType: 'success',
+      priceEstimates: null,
+      totalEstimate: null
     }
+  },
+  created() {
+    this.cart = loadCart()
   },
   computed: {
     actualQuantity() {
@@ -115,13 +152,6 @@ export default {
     }
   },
   methods: {
-    sanitizeStorageValue(storage) {
-      // Convert empty strings, null, undefined to null for bigint compatibility
-      if (storage === '' || storage === null || storage === undefined) {
-        return null
-      }
-      return storage
-    },
     async onSelectionChange(payload) {
       console.log('Selection changed', payload)
       
@@ -129,7 +159,7 @@ export default {
       if (payload.store && payload.product && payload.color) {
         try {
           // Handle storage field properly - use null instead of empty string for bigint
-          const storageValue = this.sanitizeStorageValue(payload.storage)
+          const storageValue = sanitizeStorageValue(payload.storage)
           
           // Fetch price and inventory information
           const [price, quantity] = await Promise.all([
@@ -160,6 +190,33 @@ export default {
         this.sellMessage = ''
       }
     },
+    handleAddToCart() {
+      if (!this.canSell) return
+      this.isAddingToCart = true
+      this.cartMessage = ''
+      try {
+        const line = {
+          product: this.selectedItem.product,
+          color: this.selectedItem.color,
+          storage: this.selectedItem.storage,
+          quantity: this.actualQuantity
+        }
+        const { cart: next, error } = cartAddItem(this.cart, this.selectedItem.store, line)
+        if (error) {
+          this.cartMessage = error
+          this.cartMessageType = 'error'
+        } else {
+          this.cart = next
+          this.cartMessage = 'Added to cart'
+          this.cartMessageType = 'success'
+        }
+      } catch (e) {
+        this.cartMessage = 'Failed to add to cart'
+        this.cartMessageType = 'error'
+      } finally {
+        this.isAddingToCart = false
+      }
+    },
     
     async handleSell() {
       if (!this.canSell) return
@@ -168,8 +225,20 @@ export default {
       this.sellMessage = ''
       
       try {
-        // First, get the inventory record ID before deducting
-        const inventoryRecordId = await this.getInventoryRecordId()
+        // Latest unit price at checkout time
+        const latestUnitPrice = await fetchPrice(
+          this.selectedItem.store,
+          this.selectedItem.product,
+          this.selectedItem.color,
+          this.selectedItem.storage
+        )
+        // Get the inventory record ID before deducting
+        const inventoryRecordId = await getInventoryRecordId({
+          store: this.selectedItem.store,
+          product: this.selectedItem.product,
+          color: this.selectedItem.color,
+          storage: this.selectedItem.storage
+        })
         
         // Create sale record with inventory ID
         const saleData = {
@@ -177,20 +246,25 @@ export default {
           id: inventoryRecordId, // Use the same ID as inventory record
           name: this.selectedItem.store.name,
           product: this.selectedItem.product,
-          price: this.totalPrice,
+          price: (latestUnitPrice || 0) * this.actualQuantity,
           quantity: this.actualQuantity,
           store_location: this.selectedItem.store.location,
           color: this.selectedItem.color,
-          storage: this.sanitizeStorageValue(this.selectedItem.storage),
-          unit_price: this.selectedItem.price
+          storage: sanitizeStorageValue(this.selectedItem.storage),
+          unit_price: latestUnitPrice
         }
         
         await createSale(saleData)
         
         // Deduct inventory from the inventory table
-        await this.deductInventory()
+        await deductInventory({
+          store: this.selectedItem.store,
+          product: this.selectedItem.product,
+          color: this.selectedItem.color,
+          storage: this.selectedItem.storage
+        }, this.actualQuantity)
         
-        this.sellMessage = `Successfully sold ${this.actualQuantity} items for $${this.totalPrice}`
+        this.sellMessage = `Successfully sold ${this.actualQuantity} items for $${(latestUnitPrice || 0) * this.actualQuantity}`
         this.sellMessageType = 'success'
         
         // Refresh inventory information
@@ -214,114 +288,101 @@ export default {
         this.isSelling = false
       }
     },
-    
-    async getInventoryRecordId() {
-      const { name, location } = this.selectedItem.store
-      const { product, color, storage } = this.selectedItem
-      
-      // Get inventory record ID that matches the selected criteria
-      let query = supabase
-        .from('inventory')
-        .select('id')
-        .eq('name', name)
-        .eq('location', location)
-        .ilike('product', product)
-        .ilike('color', color)
-      
-      // Include storage filter
-      const sanitizedStorage = this.sanitizeStorageValue(storage)
-      if (sanitizedStorage !== null) {
-        const storageNumber = Number(sanitizedStorage)
-        query = Number.isNaN(storageNumber)
-          ? query.eq('storage', String(sanitizedStorage))
-          : query.eq('storage', storageNumber)
-      } else {
-        query = query.or('storage.is.null,storage.eq.')
-      }
-      
-      const { data, error } = await query
-      
-      if (error) throw error
-      
-      if (!data || data.length === 0) {
-        throw new Error(`No inventory record found for ${product} ${color} ${storage ? storage + 'GB' : 'no storage'}`)
-      }
-      
-      // Return the first record's ID
-      return data[0].id
+    onCartUpdateQty({ key, quantity }) {
+      this.cart = cartUpdateQuantity(this.cart, key, quantity)
+      this.cartMessage = ''
     },
-    
-    async deductInventory() {
-      const { name, location } = this.selectedItem.store
-      const { product, color, storage } = this.selectedItem
-      const quantityToDeduct = this.actualQuantity
-      
-      // Get inventory records that match EXACTLY the selected criteria
-      let query = supabase
-        .from('inventory')
-        .select('*')
-        .eq('name', name)
-        .eq('location', location)
-        .ilike('product', product)
-        .ilike('color', color)
-      
-      // ALWAYS include storage filter to ensure exact match
-      const sanitizedStorage = this.sanitizeStorageValue(storage)
-      if (sanitizedStorage !== null) {
-        const storageNumber = Number(sanitizedStorage)
-        query = Number.isNaN(storageNumber)
-          ? query.eq('storage', String(sanitizedStorage))
-          : query.eq('storage', storageNumber)
-      } else {
-        // If no storage specified, only match records where storage is null or empty
-        query = query.or('storage.is.null,storage.eq.')
-      }
-      
-      const { data: inventoryRecords, error: fetchError } = await query
-      
-      if (fetchError) throw fetchError
-      
-      if (!inventoryRecords || inventoryRecords.length === 0) {
-        throw new Error(`No inventory records found for ${product} ${color} ${storage ? storage + 'GB' : 'no storage'}`)
-      }
-      
-      // Calculate total available quantity for this exact product variant
-      let totalAvailable = 0
-      for (const record of inventoryRecords) {
-        totalAvailable += Number(record.quantity) || 0
-      }
-      
-      if (totalAvailable < quantityToDeduct) {
-        throw new Error(`Insufficient inventory. Available: ${totalAvailable}, Required: ${quantityToDeduct}`)
-      }
-      
-      // Deduct quantity from records until we've deducted the required amount
-      let remainingToDeduct = quantityToDeduct
-      
-      for (const record of inventoryRecords) {
-        if (remainingToDeduct <= 0) break
-        
-        const currentQuantity = Number(record.quantity) || 0
-        const deductFromThisRecord = Math.min(remainingToDeduct, currentQuantity)
-        
-        if (deductFromThisRecord > 0) {
-          const newQuantity = currentQuantity - deductFromThisRecord
-          
-          const { error: updateError } = await supabase
-            .from('inventory')
-            .update({ quantity: newQuantity })
-            .eq('id', record.id)
-            .eq('name', record.name)
-            .eq('location', record.location)
-          
-          if (updateError) throw updateError
-          
-          remainingToDeduct -= deductFromThisRecord
+    onCartRemoveItem(key) {
+      this.cart = cartRemoveItem(this.cart, key)
+      this.cartMessage = ''
+    },
+    onCartClear() {
+      this.cart = cartClear()
+      this.cartMessage = ''
+      this.priceEstimates = null
+      this.totalEstimate = null
+    },
+    async onCartCheckout() {
+      if (!this.cart || this.cart.items.length === 0) return
+      this.isCartProcessing = true
+      this.cartMessage = ''
+      try {
+        // 先逐筆驗最新單價與可售數量
+        for (const item of this.cart.items) {
+          const [qtyAvailable] = await Promise.all([
+            fetchQuantitySum(this.cart.store, item.product, item.color, item.storage)
+          ])
+          if (qtyAvailable < item.quantity) {
+            this.cartMessage = `Insufficient inventory for ${item.product} ${item.color} ${item.storage || ''}. Available: ${qtyAvailable}, Required: ${item.quantity}`
+            this.cartMessageType = 'error'
+            return
+          }
         }
+
+        // 逐筆結帳與扣庫存（依你的決策逐筆處理）
+        for (const item of this.cart.items) {
+          const latestUnitPrice = await fetchPrice(this.cart.store, item.product, item.color, item.storage)
+          const inventoryRecordId = await getInventoryRecordId({
+            store: this.cart.store,
+            product: item.product,
+            color: item.color,
+            storage: item.storage
+          })
+          const saleData = {
+            time: new Date().toISOString(),
+            id: inventoryRecordId,
+            name: this.cart.store.name,
+            product: item.product,
+            price: (latestUnitPrice || 0) * item.quantity,
+            quantity: item.quantity,
+            store_location: this.cart.store.location,
+            color: item.color,
+            storage: sanitizeStorageValue(item.storage),
+            unit_price: latestUnitPrice
+          }
+          await createSale(saleData)
+          await deductInventory({
+            store: this.cart.store,
+            product: item.product,
+            color: item.color,
+            storage: item.storage
+          }, item.quantity)
+        }
+
+        this.cart = cartClear()
+        this.cartMessage = 'Checkout completed.'
+        this.cartMessageType = 'success'
+      } catch (e) {
+        console.error(e)
+        this.cartMessage = `Checkout failed: ${e.message}`
+        this.cartMessageType = 'error'
+      } finally {
+        this.isCartProcessing = false
       }
-      
-      if (remainingToDeduct > 0) {
-        throw new Error('Insufficient inventory to complete the sale')
+    },
+    async onRefreshEstimates() {
+      if (!this.cart || this.cart.items.length === 0 || !this.cart.store) {
+        this.priceEstimates = null
+        this.totalEstimate = null
+        return
+      }
+      this.isCartProcessing = true
+      try {
+        const estimates = {}
+        let total = 0
+        for (const item of this.cart.items) {
+          const unit = await fetchPrice(this.cart.store, item.product, item.color, item.storage)
+          estimates[item.key] = unit
+          total += (Number(unit) || 0) * (Number(item.quantity) || 0)
+        }
+        this.priceEstimates = estimates
+        this.totalEstimate = total
+      } catch (e) {
+        console.error(e)
+        this.cartMessage = 'Failed to refresh prices'
+        this.cartMessageType = 'error'
+      } finally {
+        this.isCartProcessing = false
       }
     }
   }
