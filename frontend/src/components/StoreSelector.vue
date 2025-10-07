@@ -9,19 +9,7 @@
     placeholder="Select a store"
     clearable
     @update:model-value="onUpdate"
-  >
-    <template #item="{ props, item }">
-      <v-list-item
-        v-bind="props"
-        :disabled="item?.raw?.notAvailable === true"
-        :class="item?.raw?.notAvailable ? 'text-disabled' : ''"
-      >
-        <v-list-item-title>
-          {{ item?.raw?.label }}
-        </v-list-item-title>
-      </v-list-item>
-    </template>
-  </v-autocomplete>
+  />
 </template>
 
 <script>
@@ -58,20 +46,29 @@ export default {
         if (this.product && this.color) {
           const storesForSelection = await fetchStoresByProductColorStorage(this.product, this.color, this.storage)
           for (const s of storesForSelection) {
-            const key = `${s.name}__${s.location}`
+            const key = `${String(s.name).trim().replace(/\s+/g, ' ').toLowerCase()}__${String(s.location).trim().replace(/\s+/g, ' ').toLowerCase()}`
             presenceMap.set(key, { hasProduct: true, available: s.available })
           }
         }
 
         const normalizeKey = (n, l) => `${String(n).trim().replace(/\s+/g, ' ').toLowerCase()}__${String(l).trim().replace(/\s+/g, ' ').toLowerCase()}`
-        const map = new Map()
+        const storeMap = new Map()
+        
+        // Process each store and ensure no duplicates
         for (const s of allStores) {
           const key = normalizeKey(s.name, s.location)
+          
+          // Skip if we already processed this store
+          if (storeMap.has(key)) {
+            continue
+          }
+          
           const presence = presenceMap.get(key)
           const hasProduct = presence?.hasProduct === true
           const hasInventory = presence?.available === true
           const cleanName = String(s.name).trim().replace(/\s+/g, ' ')
           const cleanLocation = String(s.location).trim().replace(/\s+/g, ' ')
+          
           let label = `${cleanName} — ${cleanLocation}`
           if (this.product && this.color) {
             if (!hasProduct) {
@@ -80,15 +77,18 @@ export default {
               label = `(no available) ${label}`
             }
           }
+          
           const value = { name: cleanName, location: cleanLocation }
           const item = {
             label,
             value,
-            notAvailable: this.product && this.color ? !hasProduct : false
+            disabled: this.product && this.color ? !hasProduct : false
           }
-          if (!map.has(key)) map.set(key, item)
+          
+          storeMap.set(key, item)
         }
-        this.storeItems = Array.from(map.values())
+        
+        this.storeItems = Array.from(storeMap.values())
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Failed to load stores', err)

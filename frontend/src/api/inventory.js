@@ -107,9 +107,13 @@ export async function fetchStoresByProductColorStorage(product, color, storage) 
   const results = []
   for (const [key, total] of aggregate.entries()) {
     const [nameLower, locationLower] = key.split('__')
-    // We don't have original case here, but lowercase is fine for key; label will reflect canonical case from collapse
-    const name = nameLower
-    const location = locationLower
+    // We need to restore the original case by finding it from the original data
+    const originalRow = data.find(row => 
+      collapse(row.name).toLowerCase() === nameLower && 
+      collapse(row.location).toLowerCase() === locationLower
+    )
+    const name = originalRow ? collapse(originalRow.name) : nameLower
+    const location = originalRow ? collapse(originalRow.location) : locationLower
     const available = total > 0
     const baseLabel = `${name} — ${location}`
     const label = available ? baseLabel : `(no available) ${baseLabel}`
