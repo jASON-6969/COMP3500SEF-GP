@@ -1,6 +1,6 @@
 <template>
   <v-autocomplete
-    :disabled="!store"
+    :disabled="false"
     :items="items"
     :loading="loading"
     :model-value="modelValue"
@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { fetchProductsByStore } from '../api/inventory'
+import { fetchDistinctProducts } from '../api/inventory'
 
 export default {
   name: 'ProductSelector',
@@ -22,7 +22,7 @@ export default {
       type: String,
       default: ''
     },
-    store: {
+    store: { // kept for compatibility, unused in new flow
       type: Object,
       default: null
     }
@@ -34,26 +34,21 @@ export default {
     }
   },
   watch: {
-    store: {
-      handler() {
-        this.load()
-      },
-      immediate: true
-    }
+    modelValue() {},
+  },
+  mounted() {
+    this.load()
   },
   methods: {
     async load() {
-      if (!this.store) {
-        this.items = []
-        return
-      }
       this.loading = true
       try {
-        const products = await fetchProductsByStore(this.store)
-        this.items = products
+        const products = await fetchDistinctProducts()
+        this.items = products.length > 0 ? products : ['(not available)']
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Failed to load products', err)
+        this.items = ['(not available)']
       } finally {
         this.loading = false
       }

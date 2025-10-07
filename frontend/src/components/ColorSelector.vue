@@ -1,6 +1,6 @@
 <template>
   <v-autocomplete
-    :disabled="!store || !product"
+    :disabled="!product"
     :items="items"
     :loading="loading"
     :model-value="modelValue"
@@ -12,7 +12,7 @@
 </template>
 
 <script>
-import { fetchColorsByStoreAndProduct } from '../api/inventory'
+import { fetchColorsByProduct } from '../api/inventory'
 
 export default {
   name: 'ColorSelector',
@@ -21,7 +21,7 @@ export default {
       type: String,
       default: ''
     },
-    store: {
+    store: { // kept for compatibility, unused in new flow
       type: Object,
       default: null
     },
@@ -37,27 +37,25 @@ export default {
     }
   },
   watch: {
-    store: {
+    product: {
       handler() { this.load() },
       immediate: true
-    },
-    product() {
-      this.load()
     }
   },
   methods: {
     async load() {
-      if (!this.store || !this.product) {
+      if (!this.product) {
         this.items = []
         return
       }
       this.loading = true
       try {
-        const colors = await fetchColorsByStoreAndProduct(this.store, this.product)
-        this.items = colors
+        const colors = await fetchColorsByProduct(this.product)
+        this.items = (colors && colors.length) ? colors : ['(not available)']
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Failed to load colors', err)
+        this.items = ['(not available)']
       } finally {
         this.loading = false
       }

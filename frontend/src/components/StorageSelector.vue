@@ -1,6 +1,6 @@
 <template>
   <v-autocomplete
-    :disabled="!store || !product || !color"
+    :disabled="!product || !color"
     :items="displayItems"
     :loading="loading"
     :model-value="modelValue"
@@ -14,7 +14,7 @@
 </template>
 
 <script>
-import { fetchStoragesByStoreProductColor } from '../api/inventory'
+import { fetchStoragesByProductColor } from '../api/inventory'
 
 export default {
   name: 'StorageSelector',
@@ -23,7 +23,7 @@ export default {
       type: [String, Number],
       default: ''
     },
-    store: { type: Object, default: null },
+    store: { type: Object, default: null }, // kept for compatibility, unused in new flow
     product: { type: String, default: '' },
     color: { type: String, default: '' }
   },
@@ -36,25 +36,28 @@ export default {
   },
   computed: {
     displayItems() {
-      return this.items.map(v => ({ label: `${v}GB`, value: v }))
+      return this.items.map(v => (
+        v === '(not available)'
+          ? { label: '(not available)', value: '' }
+          : { label: `${v}GB`, value: v }
+      ))
     }
   },
   watch: {
-    store: { handler() { this.load() }, immediate: true },
-    product() { this.load() },
+    product: { handler() { this.load() }, immediate: true },
     color() { this.load() }
   },
   methods: {
     async load() {
-      if (!this.store || !this.product || !this.color) {
+      if (!this.product || !this.color) {
         this.items = []
         this.$emit('options', 0)
         return
       }
       this.loading = true
       try {
-        const storages = await fetchStoragesByStoreProductColor(this.store, this.product, this.color)
-        this.items = storages
+        const storages = await fetchStoragesByProductColor(this.product, this.color)
+        this.items = (storages && storages.length) ? storages : ['(not available)']
         this.$emit('options', this.items.length)
         if (this.items.length === 0) {
           // 清空已选存储，避免卡住查询
@@ -63,7 +66,8 @@ export default {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Failed to load storages', err)
-        this.$emit('options', 0)
+        this.items = ['(not available)']
+        this.$emit('options', 1)
       } finally {
         this.loading = false
       }
