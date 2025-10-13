@@ -18,29 +18,32 @@
           ></v-select>
         </v-col>
         
-        <!-- Single Date Selection -->
-        <v-col cols="12" md="4" v-if="dateFilterType === 'single'">
-          <v-date-picker
-            v-model="singleDate"
-            @update:model-value="onDateChange"
-            color="primary"
-            show-adjacent-months
-            :max="new Date().toISOString().split('T')[0]"
-          ></v-date-picker>
-        </v-col>
-        
-        <!-- Date Range Selection -->
-        <v-col cols="12" md="4" v-if="dateFilterType === 'range'">
-          <v-text-field
-            v-model="dateRangeText"
-            label="Date Range"
-            placeholder="Select start and end date"
-            outlined
-            dense
-            readonly
-            append-icon="mdi-calendar"
-            @click="showDateRangePicker = true"
-          ></v-text-field>
+        <!-- Two Days Selection -->
+        <v-col cols="12" md="8" v-if="dateFilterType === 'two-days'">
+          <v-row>
+            <v-col cols="6">
+              <v-text-field
+                v-model="firstDate"
+                label="Start Date"
+                type="date"
+                outlined
+                dense
+                :max="new Date().toISOString().split('T')[0]"
+                @update:model-value="onTwoDaysChange"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="6">
+              <v-text-field
+                v-model="secondDate"
+                label="End Date"
+                type="date"
+                outlined
+                dense
+                :max="new Date().toISOString().split('T')[0]"
+                @update:model-value="onTwoDaysChange"
+              ></v-text-field>
+            </v-col>
+          </v-row>
         </v-col>
         
         <!-- Product Filter -->
@@ -101,27 +104,6 @@
       </v-row>
     </v-card-text>
     
-    <!-- Date Range Picker Dialog -->
-    <v-dialog v-model="showDateRangePicker" max-width="400px">
-      <v-card>
-        <v-card-title>Select Date Range</v-card-title>
-        <v-card-text>
-          <v-date-picker
-            v-model="dateRange"
-            range
-            @update:model-value="onDateRangeChange"
-            color="primary"
-            show-adjacent-months
-            :max="new Date().toISOString().split('T')[0]"
-          ></v-date-picker>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn text @click="showDateRangePicker = false">Cancel</v-btn>
-          <v-btn color="primary" @click="confirmDateRange">Confirm</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </v-card>
 </template>
 
@@ -139,13 +121,10 @@ export default {
       dateFilterType: 'none',
       dateFilterOptions: [
         { title: 'No Date Filter', value: 'none' },
-        { title: 'Select Single Date', value: 'single' },
-        { title: 'Select Date Range', value: 'range' }
+        { title: 'Select Day Range', value: 'two-days' }
       ],
-      singleDate: null,
-      dateRange: [],
-      dateRangeText: '',
-      showDateRangePicker: false,
+      firstDate: null,
+      secondDate: null,
       selectedProducts: [],
       selectedStoreNames: [],
       availableProducts: [],
@@ -186,29 +165,16 @@ export default {
       this.onFiltersChange()
     },
     
-    onDateChange() {
-      this.onFiltersChange()
-    },
-    
-    onDateRangeChange() {
-      // Handle date range changes
-    },
-    
-    confirmDateRange() {
-      if (this.dateRange && this.dateRange.length > 0) {
-        if (this.dateRange.length === 1) {
-          this.dateRangeText = this.formatDate(this.dateRange[0])
-        } else if (this.dateRange.length === 2) {
-          this.dateRangeText = `${this.formatDate(this.dateRange[0])} - ${this.formatDate(this.dateRange[1])}`
-        }
-      }
-      this.showDateRangePicker = false
+    onTwoDaysChange() {
       this.onFiltersChange()
     },
     
     formatDate(date) {
       if (!date) return ''
-      return new Date(date).toLocaleDateString('en-US')
+      const dateObj = new Date(date)
+      // 添加8小时时区偏移，确保显示本地时间
+      const localDate = new Date(dateObj.getTime() + 8 * 60 * 60 * 1000)
+      return localDate.toLocaleDateString('en-US')
     },
     
     onFiltersChange() {
@@ -227,10 +193,10 @@ export default {
     },
     
     getDateRangeFilter() {
-      if (this.dateFilterType === 'single' && this.singleDate) {
-        return [this.singleDate]
-      } else if (this.dateFilterType === 'range' && this.dateRange.length > 0) {
-        return this.dateRange
+      if (this.dateFilterType === 'two-days' && this.firstDate && this.secondDate) {
+        // Return the two dates in chronological order
+        const dates = [this.firstDate, this.secondDate].sort()
+        return dates
       }
       return null
     },
@@ -247,18 +213,16 @@ export default {
     
     resetFilters() {
       this.dateFilterType = 'none'
-      this.singleDate = null
-      this.dateRange = []
-      this.dateRangeText = ''
+      this.firstDate = null
+      this.secondDate = null
       this.selectedProducts = []
       this.selectedStoreNames = []
       this.emitFilters()
     },
     
     resetDateFilters() {
-      this.singleDate = null
-      this.dateRange = []
-      this.dateRangeText = ''
+      this.firstDate = null
+      this.secondDate = null
     }
   }
 }

@@ -12,7 +12,7 @@
     <v-card-text>
       <!-- Statistics -->
       <v-row class="mb-4" v-if="stats">
-        <v-col cols="12" md="4">
+        <v-col cols="12" md="3">
           <v-card color="primary" variant="tonal">
             <v-card-text class="text-center">
               <div class="text-h6">{{ stats.totalRecords }}</div>
@@ -20,7 +20,7 @@
             </v-card-text>
           </v-card>
         </v-col>
-        <v-col cols="12" md="4">
+        <v-col cols="12" md="3">
           <v-card color="success" variant="tonal">
             <v-card-text class="text-center">
               <div class="text-h6">${{ stats.totalRevenue.toLocaleString() }}</div>
@@ -28,11 +28,26 @@
             </v-card-text>
           </v-card>
         </v-col>
-        <v-col cols="12" md="4">
+        <v-col cols="12" md="3">
           <v-card color="info" variant="tonal">
             <v-card-text class="text-center">
               <div class="text-h6">{{ stats.totalQuantity }}</div>
               <div class="text-caption">Total Quantity</div>
+            </v-card-text>
+          </v-card>
+        </v-col>
+        <v-col cols="12" md="3">
+          <v-card color="warning" variant="tonal">
+            <v-card-text class="text-center">
+              <v-btn
+                color="warning"
+                variant="elevated"
+                @click="showRevenueChart"
+                :disabled="!stats.dailyRevenue || stats.dailyRevenue.length === 0"
+              >
+                <v-icon left>mdi-chart-line</v-icon>
+                Show Revenue
+              </v-btn>
             </v-card-text>
           </v-card>
         </v-col>
@@ -198,15 +213,131 @@
           :total-visible="7"
           class="mt-4"
           @update:model-value="onPageChange"
-        ></v-pagination>
+        >        </v-pagination>
       </div>
     </v-card-text>
+
+    <!-- Revenue Chart Dialog -->
+    <v-dialog v-model="showChartDialog" max-width="1200px">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon left color="primary">mdi-chart-line</v-icon>
+          Revenue Analysis
+          <v-spacer></v-spacer>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="showChartDialog = false"
+          ></v-btn>
+        </v-card-title>
+        <v-card-text>
+          <!-- Date Range Selector for Revenue Analysis -->
+          <v-card class="mb-4" variant="outlined">
+            <v-card-title class="text-subtitle-1">
+              <v-icon left>mdi-calendar-range</v-icon>
+              Date Range Filter
+            </v-card-title>
+            <v-card-text>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="revenueDateRange.startDate"
+                    label="Start Date"
+                    type="date"
+                    prepend-icon="mdi-calendar-start"
+                    variant="outlined"
+                    density="compact"
+                    :max="revenueDateRange.endDate || new Date().toISOString().split('T')[0]"
+                    @update:model-value="onRevenueDateRangeChange"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="revenueDateRange.endDate"
+                    label="End Date"
+                    type="date"
+                    prepend-icon="mdi-calendar-end"
+                    variant="outlined"
+                    density="compact"
+                    :min="revenueDateRange.startDate"
+                    :max="new Date().toISOString().split('T')[0]"
+                    @update:model-value="onRevenueDateRangeChange"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4" class="d-flex align-center">
+                  <v-btn
+                    color="primary"
+                    variant="outlined"
+                    @click="applyRevenueDateRange"
+                    :disabled="!revenueDateRange.startDate || !revenueDateRange.endDate"
+                    class="mr-2"
+                  >
+                    <v-icon left>mdi-filter</v-icon>
+                    Apply Filter
+                  </v-btn>
+                  <v-btn
+                    color="secondary"
+                    variant="text"
+                    @click="clearRevenueDateRange"
+                  >
+                    <v-icon left>mdi-refresh</v-icon>
+                    Clear
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </v-card>
+          
+          <v-tabs v-model="activeTab" class="mb-4">
+            <v-tab value="daily">Daily Revenue</v-tab>
+            <v-tab value="monthly">Monthly Revenue</v-tab>
+          </v-tabs>
+          
+          <v-tabs-window v-model="activeTab">
+            <v-tabs-window-item value="daily">
+              <div v-if="filteredDailyRevenue && filteredDailyRevenue.length > 0">
+                <RevenueChart
+                  :data="filteredDailyRevenue"
+                  :type="'daily'"
+                  :title="'Daily Revenue Trend'"
+                />
+              </div>
+              <div v-else class="text-center py-8">
+                <v-icon size="64" color="grey">mdi-chart-line</v-icon>
+                <div class="text-h6 mt-2">No Daily Revenue Data</div>
+                <div class="text-body-2 text-grey">No sales data available for daily analysis</div>
+              </div>
+            </v-tabs-window-item>
+            
+            <v-tabs-window-item value="monthly">
+              <div v-if="filteredMonthlyRevenue && filteredMonthlyRevenue.length > 0">
+                <RevenueChart
+                  :data="filteredMonthlyRevenue"
+                  :type="'monthly'"
+                  :title="'Monthly Revenue Trend'"
+                />
+              </div>
+              <div v-else class="text-center py-8">
+                <v-icon size="64" color="grey">mdi-chart-line</v-icon>
+                <div class="text-h6 mt-2">No Monthly Revenue Data</div>
+                <div class="text-body-2 text-grey">No sales data available for monthly analysis</div>
+              </div>
+            </v-tabs-window-item>
+          </v-tabs-window>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>
 
 <script>
+import RevenueChart from './RevenueChart.vue'
+
 export default {
   name: 'SalesRecordList',
+  components: {
+    RevenueChart
+  },
   props: {
     salesRecords: {
       type: Array,
@@ -229,7 +360,13 @@ export default {
     return {
       currentPage: 1,
       itemsPerPage: 20,
-      expandedPanels: []
+      expandedPanels: [],
+      showChartDialog: false,
+      activeTab: 'daily',
+      revenueDateRange: {
+        startDate: '',
+        endDate: ''
+      }
     }
   },
   computed: {
@@ -243,6 +380,57 @@ export default {
       const start = (this.currentPage - 1) * this.itemsPerPage
       const end = start + this.itemsPerPage
       return this.salesRecords.slice(start, end)
+    },
+    filteredSalesRecords() {
+      if (!this.revenueDateRange.startDate || !this.revenueDateRange.endDate) {
+        return this.salesRecords
+      }
+      
+      const startDate = new Date(this.revenueDateRange.startDate)
+      startDate.setHours(0, 0, 0, 0)
+      const endDate = new Date(this.revenueDateRange.endDate)
+      endDate.setHours(23, 59, 59, 999)
+      
+      return this.salesRecords.filter(record => {
+        if (!record.time) return false
+        const recordDate = new Date(record.time)
+        return recordDate >= startDate && recordDate <= endDate
+      })
+    },
+    filteredDailyRevenue() {
+      if (!this.stats || !this.stats.dailyRevenue) {
+        return []
+      }
+      
+      if (!this.revenueDateRange.startDate || !this.revenueDateRange.endDate) {
+        return this.stats.dailyRevenue
+      }
+      
+      const startDate = new Date(this.revenueDateRange.startDate)
+      const endDate = new Date(this.revenueDateRange.endDate)
+      
+      return this.stats.dailyRevenue.filter(item => {
+        const itemDate = new Date(item.date)
+        return itemDate >= startDate && itemDate <= endDate
+      })
+    },
+    filteredMonthlyRevenue() {
+      if (!this.stats || !this.stats.monthlyRevenue) {
+        return []
+      }
+      
+      if (!this.revenueDateRange.startDate || !this.revenueDateRange.endDate) {
+        return this.stats.monthlyRevenue
+      }
+      
+      const startDate = new Date(this.revenueDateRange.startDate)
+      const endDate = new Date(this.revenueDateRange.endDate)
+      
+      return this.stats.monthlyRevenue.filter(item => {
+        const [year, month] = item.month.split('-')
+        const itemDate = new Date(year, month - 1, 1)
+        return itemDate >= startDate && itemDate <= endDate
+      })
     }
   },
   watch: {
@@ -256,13 +444,25 @@ export default {
     formatDate(dateString) {
       if (!dateString) return ''
       const date = new Date(dateString)
-      return date.toLocaleDateString('en-US')
+      // 添加8小时时区偏移，确保显示本地时间
+      const localDate = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+      return localDate.toLocaleDateString('en-US')
     },
     
     formatDateTime(dateString) {
       if (!dateString) return ''
       const date = new Date(dateString)
-      return date.toLocaleString('en-US')
+      // 添加8小时时区偏移，确保显示本地时间
+      const localDate = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+      return localDate.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      })
     },
     
     onPageChange(page) {
@@ -282,6 +482,29 @@ export default {
     
     collapseAll() {
       this.expandedPanels = []
+    },
+    
+    showRevenueChart() {
+      this.showChartDialog = true
+      this.activeTab = 'daily'
+    },
+    
+    onRevenueDateRangeChange() {
+      // Auto-apply filter when both dates are selected
+      if (this.revenueDateRange.startDate && this.revenueDateRange.endDate) {
+        this.applyRevenueDateRange()
+      }
+    },
+    
+    applyRevenueDateRange() {
+      // Force reactivity update
+      this.$forceUpdate()
+    },
+    
+    clearRevenueDateRange() {
+      this.revenueDateRange.startDate = ''
+      this.revenueDateRange.endDate = ''
+      this.applyRevenueDateRange()
     }
   }
 }
