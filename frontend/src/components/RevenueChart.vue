@@ -128,9 +128,13 @@ export default {
   methods: {
     createDataSnapshot(data) {
       try {
-        // 使用toRaw完全去除响应式，然后深拷贝
+        // 完全去除响应式，使用深拷贝避免循环引用
         const rawData = toRaw(data)
-        this.chartDataSnapshot = JSON.parse(JSON.stringify(rawData || []))
+        if (rawData && Array.isArray(rawData)) {
+          this.chartDataSnapshot = JSON.parse(JSON.stringify(rawData))
+        } else {
+          this.chartDataSnapshot = []
+        }
       } catch (error) {
         console.error('Error creating data snapshot:', error)
         this.chartDataSnapshot = []
@@ -139,9 +143,13 @@ export default {
 
     createHourlyDataSnapshot(hourlyData) {
       try {
-        // 使用toRaw完全去除响应式，然后深拷贝
+        // 完全去除响应式，使用深拷贝避免循环引用
         const rawHourlyData = toRaw(hourlyData)
-        this.hourlyDataSnapshot = JSON.parse(JSON.stringify(rawHourlyData || []))
+        if (rawHourlyData && Array.isArray(rawHourlyData)) {
+          this.hourlyDataSnapshot = JSON.parse(JSON.stringify(rawHourlyData))
+        } else {
+          this.hourlyDataSnapshot = []
+        }
       } catch (error) {
         console.error('Error creating hourly data snapshot:', error)
         this.hourlyDataSnapshot = []
@@ -152,6 +160,12 @@ export default {
       // 使用快照数据，完全隔离响应式系统
       const data = this.chartDataSnapshot || []
       const hourlyData = this.hourlyDataSnapshot || []
+      
+      // 防止循环引用，确保数据是纯对象
+      if (data && typeof data === 'object' && data.constructor === Object) {
+        console.warn('RevenueChart: Data contains circular references, using empty array')
+        return { labels: [], datasets: [] }
+      }
       const chartType = this.type || 'daily'
 
       if (chartType === 'daily' && hourlyData.length > 0) {
@@ -451,8 +465,9 @@ export default {
         
         if (isAggregatedData) {
           // For aggregated daily revenue data, we can't calculate hourly breakdown
-          // Return empty array or show a message that hourly data is not available
+          // Return empty array and show a message that hourly data is not available
           console.warn('Hourly data calculation not available for aggregated daily revenue data')
+          this.$emit('warning', 'Hourly breakdown is not available for aggregated daily revenue data. Please use raw sales data for hourly analysis.')
           return []
         }
         
@@ -465,8 +480,9 @@ export default {
         const dayData = this.data.filter(item => {
           if (!item.time) return false
           const itemDate = new Date(item.time)
-          // 使用本地时间进行比较，不需要手动添加时区偏移
-          return itemDate >= startOfDay && itemDate <= endOfDay
+          // 数据库使用不同时区，需要添加8小时偏移
+          const adjustedItemDate = new Date(itemDate.getTime() + 8 * 60 * 60 * 1000)
+          return adjustedItemDate >= startOfDay && adjustedItemDate <= endOfDay
         })
         
         const hourlyMap = new Map()
@@ -477,10 +493,13 @@ export default {
         dayData.forEach(item => {
           if (item.time) {
             const itemDate = new Date(item.time)
-            // 使用本地时间获取小时，不需要手动添加时区偏移
-            const hour = itemDate.getHours()
+            // 数据库使用不同时区，需要添加8小时偏移
+            const adjustedItemDate = new Date(itemDate.getTime() + 8 * 60 * 60 * 1000)
+            const hour = adjustedItemDate.getHours()
             const revenue = parseFloat(item.price) || 0
-            hourlyMap.set(hour, (hourlyMap.get(hour) || 0) + revenue)
+            if (hour >= 0 && hour <= 23) {
+              hourlyMap.set(hour, (hourlyMap.get(hour) || 0) + revenue)
+            }
           }
         })
         

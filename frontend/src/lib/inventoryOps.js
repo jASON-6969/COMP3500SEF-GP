@@ -24,7 +24,7 @@ export async function getInventoryRecordId({ store, product, color, storage }) {
       ? query.eq('storage', String(sanitizedStorage))
       : query.eq('storage', storageNumber)
   } else {
-    query = query.or('storage.is.null,storage.eq.')
+    query = query.or('storage.is.null,storage.eq.0')
   }
 
   const { data, error } = await query
@@ -52,7 +52,7 @@ export async function deductInventory({ store, product, color, storage }, quanti
       ? query.eq('storage', String(sanitizedStorage))
       : query.eq('storage', storageNumber)
   } else {
-    query = query.or('storage.is.null,storage.eq.')
+    query = query.or('storage.is.null,storage.eq.0')
   }
 
   const { data: records, error: fetchError } = await query

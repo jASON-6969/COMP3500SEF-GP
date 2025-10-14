@@ -32,6 +32,9 @@
           class="mb-4"
         />
 
+        <!-- Sales Ranking -->
+        <SalesRanking class="mb-4" />
+
         <!-- Sales Records List -->
         <SalesRecordList
           :sales-records="salesRecords"
@@ -64,6 +67,7 @@
 <script>
 import SalesRecordFilters from '../components/SalesRecordFilters.vue'
 import SalesRecordList from '../components/SalesRecordList.vue'
+import SalesRanking from '../components/SalesRanking.vue'
 import { 
   fetchSalesWithFilters, 
   fetchSalesStats 
@@ -73,7 +77,8 @@ export default {
   name: 'SalesRecord',
   components: {
     SalesRecordFilters,
-    SalesRecordList
+    SalesRecordList,
+    SalesRanking
   },
   data() {
     return {

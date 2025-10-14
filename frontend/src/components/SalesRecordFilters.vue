@@ -172,9 +172,8 @@ export default {
     formatDate(date) {
       if (!date) return ''
       const dateObj = new Date(date)
-      // 添加8小时时区偏移，确保显示本地时间
-      const localDate = new Date(dateObj.getTime() + 8 * 60 * 60 * 1000)
-      return localDate.toLocaleDateString('en-US')
+      // 使用本地时区，不需要手动添加偏移
+      return dateObj.toLocaleDateString('en-US')
     },
     
     onFiltersChange() {
@@ -194,6 +193,15 @@ export default {
     
     getDateRangeFilter() {
       if (this.dateFilterType === 'two-days' && this.firstDate && this.secondDate) {
+        // 验证日期范围的有效性
+        const startDate = new Date(this.firstDate)
+        const endDate = new Date(this.secondDate)
+        
+        if (startDate > endDate) {
+          this.$emit('error', '开始日期不能晚于结束日期')
+          return null
+        }
+        
         // Return the two dates in chronological order
         const dates = [this.firstDate, this.secondDate].sort()
         return dates
