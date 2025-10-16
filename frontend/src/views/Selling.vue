@@ -152,6 +152,20 @@ export default {
     }
   },
   methods: {
+    // 生成唯一的订单ID（纯时间戳格式：YYYYMMDDHHMMSSMMM）
+    generateOrderId() {
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      const milliseconds = String(now.getMilliseconds()).padStart(3, '0')
+      
+      return `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}`
+    },
+    
     async onSelectionChange(payload) {
       console.log('Selection changed', payload)
       
@@ -240,10 +254,14 @@ export default {
           storage: this.selectedItem.storage
         })
         
+        // Generate unique order ID for this sale
+        const orderId = this.generateOrderId()
+        
         // Create sale record with inventory ID
         const saleData = {
           time: new Date().toISOString(),
           id: inventoryRecordId, // Use the same ID as inventory record
+          order_id: orderId, // Add unique order ID
           name: this.selectedItem.store.name,
           product: this.selectedItem.product,
           price: (latestUnitPrice || 0) * this.actualQuantity,
@@ -319,6 +337,9 @@ export default {
           }
         }
 
+        // Generate unique order ID for the entire cart
+        const cartOrderId = this.generateOrderId()
+        
         // 逐筆結帳與扣庫存（依你的決策逐筆處理）
         for (const item of this.cart.items) {
           const latestUnitPrice = await fetchPrice(this.cart.store, item.product, item.color, item.storage)
@@ -331,6 +352,7 @@ export default {
           const saleData = {
             time: new Date().toISOString(),
             id: inventoryRecordId,
+            order_id: cartOrderId, // Use the same order ID for all items in cart
             name: this.cart.store.name,
             product: item.product,
             price: (latestUnitPrice || 0) * item.quantity,

@@ -1,4 +1,5 @@
 import supabase from '../lib/supabase'
+import { calculateDailyRevenue, calculateMonthlyRevenue } from '../lib/revenueUtils'
 
 const TABLE_NAME = 'sales'
 
@@ -163,91 +164,7 @@ export async function fetchSalesStats(filters = {}) {
   }
 }
 
-// Helper function to calculate daily revenue
-function calculateDailyRevenue(data) {
-  // Input validation
-  if (!Array.isArray(data)) {
-    console.warn('calculateDailyRevenue: Input data is not an array')
-    return []
-  }
-  
-  if (data.length === 0) {
-    return []
-  }
-  
-  const dailyMap = new Map()
-  
-  try {
-    data.forEach((record, index) => {
-      // Validate record format
-      if (!record || typeof record !== 'object') {
-        console.warn(`calculateDailyRevenue: Skipping invalid record at index ${index}`)
-        return
-      }
-      
-      // Validate time field
-      if (!record.time) {
-        console.warn(`calculateDailyRevenue: Record missing time field at index ${index}`)
-        return
-      }
-      
-      // Parse and validate date
-      const date = new Date(record.time)
-      if (isNaN(date.getTime())) {
-        console.warn(`calculateDailyRevenue: Invalid time format at index ${index}: ${record.time}`)
-        return
-      }
-      
-      // Get date key (YYYY-MM-DD format)
-      const dateKey = date.toISOString().split('T')[0]
-      
-      // Validate price field
-      const price = parseFloat(record.price) || 0
-      if (price < 0) {
-        console.warn(`calculateDailyRevenue: Negative price value at index ${index}: ${record.price}`)
-      }
-      
-      // Accumulate revenue
-      const currentRevenue = dailyMap.get(dateKey) || 0
-      dailyMap.set(dateKey, currentRevenue + price)
-    })
-    
-    // Convert to array and sort
-    const result = Array.from(dailyMap.entries())
-      .map(([date, revenue]) => ({ 
-        date, 
-        revenue: Math.round(revenue * 100) / 100 // Keep two decimal places
-      }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-    
-    return result
-    
-  } catch (error) {
-    console.error('calculateDailyRevenue: Error processing data:', error)
-    return []
-  }
-}
-
-// Helper function to calculate monthly revenue
-function calculateMonthlyRevenue(data) {
-  const monthlyMap = new Map()
-  
-  data.forEach(record => {
-    const date = new Date(record.time)
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    
-    if (monthlyMap.has(monthKey)) {
-      monthlyMap.set(monthKey, monthlyMap.get(monthKey) + (record.price || 0))
-    } else {
-      monthlyMap.set(monthKey, record.price || 0)
-    }
-  })
-  
-  // Convert to array and sort by month
-  return Array.from(monthlyMap.entries())
-    .map(([month, revenue]) => ({ month, revenue }))
-    .sort((a, b) => a.month.localeCompare(b.month))
-}
+// 使用统一的工具函数，移除重复代码
 
 export async function fetchSalesRanking(filters = {}) {
   let query = supabase

@@ -199,6 +199,10 @@
                     <v-icon start>mdi-identifier</v-icon>
                     ID: {{ record.id }}
                   </v-chip>
+                  <v-chip color="primary" variant="outlined" size="small" class="ml-2" v-if="record.order_id">
+                    <v-icon start>mdi-receipt</v-icon>
+                    Order ID: {{ record.order_id }}
+                  </v-chip>
                 </v-col>
               </v-row>
             </v-expansion-panel-text>
