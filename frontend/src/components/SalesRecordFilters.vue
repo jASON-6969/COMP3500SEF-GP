@@ -172,7 +172,7 @@ export default {
     formatDate(date) {
       if (!date) return ''
       const dateObj = new Date(date)
-      // 使用本地时区，不需要手动添加偏移
+      // Use local timezone, no need to manually add offset
       return dateObj.toLocaleDateString('en-US')
     },
     
@@ -193,12 +193,12 @@ export default {
     
     getDateRangeFilter() {
       if (this.dateFilterType === 'two-days' && this.firstDate && this.secondDate) {
-        // 验证日期范围的有效性
+        // Validate date range validity
         const startDate = new Date(this.firstDate)
         const endDate = new Date(this.secondDate)
         
         if (startDate > endDate) {
-          this.$emit('error', '开始日期不能晚于结束日期')
+          this.$emit('error', 'Start date cannot be later than end date')
           return null
         }
         

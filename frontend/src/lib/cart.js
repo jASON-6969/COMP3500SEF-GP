@@ -1,4 +1,4 @@
-// 購物車持久化與操作工具
+// Shopping cart persistence and operation utilities
 
 const CART_STORAGE_KEY = 'app_cart'
 
@@ -34,7 +34,7 @@ export function getCartStore(cart) {
 }
 
 export function addItem(cart, store, line) {
-  // 同店限制
+  // Same store restriction
   if (cart.items.length > 0) {
     const { name, location } = cart.store || {}
     if (!store || store.name !== name || store.location !== location) {
@@ -68,7 +68,7 @@ export function addItem(cart, store, line) {
 export function updateQuantity(cart, lineKey, quantity) {
   const qty = Math.max(0, Number(quantity) || 0)
   const next = { store: cart.store, items: cart.items.map(i => (i.key === lineKey ? { ...i, quantity: qty } : i)) }
-  // 移除 0 量
+  // Remove items with 0 quantity
   const filtered = { store: next.store, items: next.items.filter(i => i.quantity > 0) }
   if (filtered.items.length === 0) filtered.store = null
   saveCart(filtered)

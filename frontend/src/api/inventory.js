@@ -229,7 +229,7 @@ export async function fetchPrice(store, product, color, storage) {
 
   if (error) throw error
 
-  // 返回第一個找到的價格，如果沒有則返回 null
+  // Return the first found price, or null if none found
   if (data && data.length > 0) {
     return data[0].price
   }

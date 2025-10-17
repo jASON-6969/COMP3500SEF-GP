@@ -60,7 +60,7 @@ export default {
         this.items = (storages && storages.length) ? storages : ['(not available)']
         this.$emit('options', this.items.length)
         if (this.items.length === 0) {
-          // 清空已选存储，避免卡住查询
+          // Clear selected storage to avoid query issues
           this.$emit('update:modelValue', '')
         }
       } catch (err) {

@@ -99,10 +99,9 @@
 <script>
 import InventorySearchPanel from '../components/InventorySearchPanel.vue'
 import { fetchPrice, fetchQuantitySum } from '../api/inventory'
-import { createSale } from '../api/sales'
 import CartPanel from '../components/CartPanel.vue'
 import { loadCart, addItem as cartAddItem, updateQuantity as cartUpdateQuantity, removeItem as cartRemoveItem, clearCart as cartClear } from '../lib/cart'
-import { sanitizeStorageValue, getInventoryRecordId, deductInventory } from '../lib/inventoryOps'
+import { sanitizeStorageValue } from '../lib/inventoryOps'
 
 export default {
   name: 'SellingPage',
@@ -128,6 +127,14 @@ export default {
   created() {
     this.cart = loadCart()
   },
+  watch: {
+    // Refresh cart when returning to this page
+    '$route'(to) {
+      if (to.path === '/selling') {
+        this.cart = loadCart()
+      }
+    }
+  },
   computed: {
     actualQuantity() {
       if (this.selectedQuantity === this.customQuantity) {
@@ -152,7 +159,7 @@ export default {
     }
   },
   methods: {
-    // 生成唯一的订单ID（纯时间戳格式：YYYYMMDDHHMMSSMMM）
+    // Generate unique order ID (timestamp format: YYYYMMDDHHMMSSMMM)
     generateOrderId() {
       const now = new Date()
       const year = now.getFullYear()
@@ -246,61 +253,28 @@ export default {
           this.selectedItem.color,
           this.selectedItem.storage
         )
-        // Get the inventory record ID before deducting
-        const inventoryRecordId = await getInventoryRecordId({
+        
+        // Prepare order data for confirmation page
+        const orderData = {
           store: this.selectedItem.store,
-          product: this.selectedItem.product,
-          color: this.selectedItem.color,
-          storage: this.selectedItem.storage
-        })
-        
-        // Generate unique order ID for this sale
-        const orderId = this.generateOrderId()
-        
-        // Create sale record with inventory ID
-        const saleData = {
-          time: new Date().toISOString(),
-          id: inventoryRecordId, // Use the same ID as inventory record
-          order_id: orderId, // Add unique order ID
-          name: this.selectedItem.store.name,
-          product: this.selectedItem.product,
-          price: (latestUnitPrice || 0) * this.actualQuantity,
-          quantity: this.actualQuantity,
-          store_location: this.selectedItem.store.location,
-          color: this.selectedItem.color,
-          storage: sanitizeStorageValue(this.selectedItem.storage),
-          unit_price: latestUnitPrice
+          items: [{
+            product: this.selectedItem.product,
+            color: this.selectedItem.color,
+            storage: this.selectedItem.storage,
+            quantity: this.actualQuantity,
+            price: latestUnitPrice || 0
+          }]
         }
         
-        await createSale(saleData)
+        // Store order data in localStorage for confirmation page
+        localStorage.setItem('checkoutData', JSON.stringify(orderData))
         
-        // Deduct inventory from the inventory table
-        await deductInventory({
-          store: this.selectedItem.store,
-          product: this.selectedItem.product,
-          color: this.selectedItem.color,
-          storage: this.selectedItem.storage
-        }, this.actualQuantity)
-        
-        this.sellMessage = `Successfully sold ${this.actualQuantity} items for $${(latestUnitPrice || 0) * this.actualQuantity}`
-        this.sellMessageType = 'success'
-        
-        // Refresh inventory information
-        const quantity = await fetchQuantitySum(
-          this.selectedItem.store, 
-          this.selectedItem.product, 
-          this.selectedItem.color, 
-          this.selectedItem.storage
-        )
-        this.selectedItem.quantity = quantity
-        
-        // Reset quantity selection
-        this.selectedQuantity = 1
-        this.customQuantityValue = 1
+        // Navigate to confirmation page
+        this.$router.push('/checkout-confirm')
         
       } catch (error) {
-        console.error('Error creating sale:', error)
-        this.sellMessage = 'Sale failed: ' + error.message
+        console.error('Error preparing checkout:', error)
+        this.sellMessage = 'Checkout preparation failed: ' + error.message
         this.sellMessageType = 'error'
       } finally {
         this.isSelling = false
@@ -325,7 +299,7 @@ export default {
       this.isCartProcessing = true
       this.cartMessage = ''
       try {
-        // 先逐筆驗最新單價與可售數量
+        // First verify latest unit price and available quantity for each item
         for (const item of this.cart.items) {
           const [qtyAvailable] = await Promise.all([
             fetchQuantitySum(this.cart.store, item.product, item.color, item.storage)
@@ -337,46 +311,33 @@ export default {
           }
         }
 
-        // Generate unique order ID for the entire cart
-        const cartOrderId = this.generateOrderId()
-        
-        // 逐筆結帳與扣庫存（依你的決策逐筆處理）
+        // Prepare cart order data for confirmation page
+        const cartItems = []
         for (const item of this.cart.items) {
           const latestUnitPrice = await fetchPrice(this.cart.store, item.product, item.color, item.storage)
-          const inventoryRecordId = await getInventoryRecordId({
-            store: this.cart.store,
+          cartItems.push({
             product: item.product,
             color: item.color,
-            storage: item.storage
-          })
-          const saleData = {
-            time: new Date().toISOString(),
-            id: inventoryRecordId,
-            order_id: cartOrderId, // Use the same order ID for all items in cart
-            name: this.cart.store.name,
-            product: item.product,
-            price: (latestUnitPrice || 0) * item.quantity,
+            storage: item.storage,
             quantity: item.quantity,
-            store_location: this.cart.store.location,
-            color: item.color,
-            storage: sanitizeStorageValue(item.storage),
-            unit_price: latestUnitPrice
-          }
-          await createSale(saleData)
-          await deductInventory({
-            store: this.cart.store,
-            product: item.product,
-            color: item.color,
-            storage: item.storage
-          }, item.quantity)
+            price: latestUnitPrice || 0
+          })
         }
-
-        this.cart = cartClear()
-        this.cartMessage = 'Checkout completed.'
-        this.cartMessageType = 'success'
+        
+        const orderData = {
+          store: this.cart.store,
+          items: cartItems
+        }
+        
+        // Store order data in localStorage for confirmation page
+        localStorage.setItem('checkoutData', JSON.stringify(orderData))
+        
+        // Navigate to confirmation page
+        this.$router.push('/checkout-confirm')
+        
       } catch (e) {
         console.error(e)
-        this.cartMessage = `Checkout failed: ${e.message}`
+        this.cartMessage = `Checkout preparation failed: ${e.message}`
         this.cartMessageType = 'error'
       } finally {
         this.isCartProcessing = false

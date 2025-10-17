@@ -279,7 +279,7 @@ export default {
     formatDate(dateString) {
       if (!dateString) return ''
       const date = new Date(dateString)
-      // 添加8小时时区偏移，确保显示本地时间
+      // Add 8-hour timezone offset to ensure local time display
       const localDate = new Date(date.getTime() + 8 * 60 * 60 * 1000)
       return localDate.toLocaleDateString('en-US')
     },
@@ -287,7 +287,7 @@ export default {
     formatDateTime(dateString) {
       if (!dateString) return ''
       const date = new Date(dateString)
-      // 添加8小时时区偏移，确保显示本地时间
+      // Add 8-hour timezone offset to ensure local time display
       const localDate = new Date(date.getTime() + 8 * 60 * 60 * 1000)
       return localDate.toLocaleString('en-US', {
         year: 'numeric',

@@ -3,7 +3,7 @@ import supabase from '../lib/supabase'
 const TABLE_NAME = 'sales'
 
 
-// 计算日收入数据
+// Calculate daily revenue data
 function calculateDailyRevenue(salesData) {
   if (!Array.isArray(salesData) || salesData.length === 0) {
     return []
@@ -38,7 +38,7 @@ function calculateDailyRevenue(salesData) {
     .sort((a, b) => new Date(a.date) - new Date(b.date))
 }
 
-// 计算月收入数据
+// Calculate monthly revenue data
 function calculateMonthlyRevenue(salesData) {
   if (!Array.isArray(salesData) || salesData.length === 0) {
     return []
@@ -228,7 +228,7 @@ export async function fetchSalesStats(filters = {}) {
   }
 }
 
-// 使用统一的工具函数，移除重复代码
+// Use unified utility functions, remove duplicate code
 
 export async function fetchSalesRanking(filters = {}) {
   let query = supabase
@@ -327,16 +327,16 @@ export async function fetchSalesRanking(filters = {}) {
   }
 }
 
-// 获取销售历史数据用于图表显示
+// Get sales history data for chart display
 export async function fetchSalesHistory(filters = {}) {
   let query = supabase
     .from(TABLE_NAME)
     .select('time, price, product, name')
     .order('time', { ascending: true })
 
-  // 应用日期过滤
+  // Apply date filtering
   if (filters.chartType === 'singleDate' && filters.date) {
-    // 单日查询 - 获取指定日期的所有销售记录
+    // Single day query - get all sales records for the specified date
     const startOfDay = new Date(filters.date + 'T00:00:00.000Z')
     const endOfDay = new Date(filters.date + 'T23:59:59.999Z')
     
@@ -344,7 +344,7 @@ export async function fetchSalesHistory(filters = {}) {
       .gte('time', startOfDay.toISOString())
       .lte('time', endOfDay.toISOString())
   } else if (filters.chartType === 'dateRange' && filters.dateRange && filters.dateRange.length === 2) {
-    // 日期范围查询
+    // Date range query
     const [startDate, endDate] = filters.dateRange
     const startOfDay = new Date(startDate + 'T00:00:00.000Z')
     const endOfDay = new Date(endDate + 'T23:59:59.999Z')
@@ -354,12 +354,12 @@ export async function fetchSalesHistory(filters = {}) {
       .lte('time', endOfDay.toISOString())
   }
 
-  // 应用产品过滤
+  // Apply product filtering
   if (filters.products && filters.products.length > 0) {
     query = query.in('product', filters.products)
   }
 
-  // 应用商店过滤
+  // Apply store filtering
   if (filters.stores && filters.stores.length > 0) {
     query = query.in('name', filters.stores)
   }
@@ -375,17 +375,17 @@ export async function fetchSalesHistory(filters = {}) {
     return []
   }
 
-  // 根据图表类型处理数据
+  // Process data based on chart type
   if (filters.chartType === 'singleDate') {
-    // 单日模式 - 按小时分组
+    // Single day mode - group by hour
     return calculateHourlyRevenue(data)
   } else {
-    // 日期范围模式 - 按天分组
+    // Date range mode - group by day
     return calculateDailyRevenue(data)
   }
 }
 
-// 计算小时收入数据
+// Calculate hourly revenue data
 function calculateHourlyRevenue(salesData) {
   if (!Array.isArray(salesData) || salesData.length === 0) {
     return []
@@ -412,7 +412,7 @@ function calculateHourlyRevenue(salesData) {
     hourlyMap.set(hourKey, currentRevenue + price)
   })
   
-  // 生成24小时的数据点，确保所有小时都有数据
+  // Generate 24-hour data points to ensure all hours have data
   const hourlyData = []
   for (let hour = 0; hour < 24; hour++) {
     const hourKey = `${String(hour).padStart(2, '0')}:00`

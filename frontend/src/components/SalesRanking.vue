@@ -364,7 +364,7 @@ export default {
     },
     
     onFiltersChange() {
-      // 实时更新排行榜
+      // Update ranking in real-time
       this.loadRankingData()
     },
     
