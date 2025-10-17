@@ -1,4 +1,5 @@
 import supabase from '../lib/supabase'
+import { capitalizeFirstLetter } from '../lib/textUtils'
 
 const TABLE_NAME = 'inventory'
 
@@ -15,8 +16,8 @@ export async function fetchDistinctStores() {
   const stores = []
   const collapse = s => String(s).trim().replace(/\s+/g, ' ')
   for (const row of data) {
-    const name = collapse(row.name)
-    const location = collapse(row.location)
+    const name = capitalizeFirstLetter(collapse(row.name))
+    const location = capitalizeFirstLetter(collapse(row.location))
     const key = `${name.toLowerCase()}__${location.toLowerCase()}`
     if (!seen.has(key)) {
       seen.add(key)
@@ -39,7 +40,7 @@ export async function fetchDistinctProducts() {
 
   if (error) throw error
 
-  const set = new Set((data || []).map(r => String(r.product).trim().toLowerCase()))
+  const set = new Set((data || []).map(r => capitalizeFirstLetter(String(r.product).trim().toLowerCase())))
   return Array.from(set).sort()
 }
 
@@ -53,7 +54,7 @@ export async function fetchColorsByProduct(product) {
 
   if (error) throw error
 
-  const set = new Set((data || []).map(r => String(r.color).trim().toLowerCase()))
+  const set = new Set((data || []).map(r => capitalizeFirstLetter(String(r.color).trim().toLowerCase())))
   return Array.from(set).sort()
 }
 
@@ -112,8 +113,8 @@ export async function fetchStoresByProductColorStorage(product, color, storage) 
       collapse(row.name).toLowerCase() === nameLower && 
       collapse(row.location).toLowerCase() === locationLower
     )
-    const name = originalRow ? collapse(originalRow.name) : nameLower
-    const location = originalRow ? collapse(originalRow.location) : locationLower
+    const name = originalRow ? capitalizeFirstLetter(collapse(originalRow.name)) : capitalizeFirstLetter(nameLower)
+    const location = originalRow ? capitalizeFirstLetter(collapse(originalRow.location)) : capitalizeFirstLetter(locationLower)
     const available = total > 0
     const baseLabel = `${name} — ${location}`
     const label = available ? baseLabel : `(no available) ${baseLabel}`
@@ -133,7 +134,7 @@ export async function fetchProductsByStore(store) {
 
   if (error) throw error
 
-  const set = new Set(data.map(r => String(r.product).trim().toLowerCase()))
+  const set = new Set(data.map(r => capitalizeFirstLetter(String(r.product).trim().toLowerCase())))
   return Array.from(set).sort()
 }
 
@@ -149,7 +150,7 @@ export async function fetchColorsByStoreAndProduct(store, product) {
 
   if (error) throw error
 
-  const set = new Set(data.map(r => String(r.color).trim().toLowerCase()))
+  const set = new Set(data.map(r => capitalizeFirstLetter(String(r.color).trim().toLowerCase())))
   return Array.from(set).sort()
 }
 

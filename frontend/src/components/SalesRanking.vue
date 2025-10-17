@@ -155,7 +155,7 @@
             </template>
             
             <v-list-item-title class="text-h6">
-              {{ item.product }}
+              {{ capitalizeFirstLetter(item.product) }}
             </v-list-item-title>
             
             <v-list-item-subtitle>
@@ -258,6 +258,7 @@ import {
   fetchDistinctStoreNames,
   fetchSalesRanking
 } from '../api/sales'
+import { capitalizeFirstLetter } from '../lib/textUtils'
 
 export default {
   name: 'SalesRanking',
@@ -302,6 +303,7 @@ export default {
     await this.loadRankingData()
   },
   methods: {
+    capitalizeFirstLetter,
     async loadFilterOptions() {
       try {
         const [products, stores] = await Promise.all([

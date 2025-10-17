@@ -149,7 +149,12 @@ export default {
           fetchDistinctStoreNames()
         ])
         
-        this.availableProducts = products
+        // Map database values to display values with proper capitalization
+        this.availableProducts = products.map(product => {
+          if (product.toLowerCase() === 'iphone') return 'iPhone'
+          if (product.toLowerCase() === 'ipad') return 'iPad'
+          return product
+        })
         this.availableStoreNames = storeNames
       } catch (error) {
         console.error('Failed to load filter options:', error)
@@ -182,9 +187,16 @@ export default {
     },
     
     emitFilters() {
+      // Convert display values back to database values for products
+      const dbProducts = this.selectedProducts.map(displayProduct => {
+        if (displayProduct === 'iPhone') return 'iphone'
+        if (displayProduct === 'iPad') return 'ipad'
+        return displayProduct
+      })
+      
       const filters = {
         dateRange: this.getDateRangeFilter(),
-        products: this.selectedProducts,
+        products: dbProducts,
         storeNames: this.selectedStoreNames
       }
       

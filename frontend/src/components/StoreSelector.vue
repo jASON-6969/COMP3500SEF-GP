@@ -14,6 +14,7 @@
 
 <script>
 import { fetchDistinctStores, fetchStoresByProductColorStorage } from '../api/inventory'
+import { capitalizeFirstLetter } from '../lib/textUtils'
 
 export default {
   name: 'StoreSelector',
@@ -66,8 +67,8 @@ export default {
           const presence = presenceMap.get(key)
           const hasProduct = presence?.hasProduct === true
           const hasInventory = presence?.available === true
-          const cleanName = String(s.name).trim().replace(/\s+/g, ' ')
-          const cleanLocation = String(s.location).trim().replace(/\s+/g, ' ')
+          const cleanName = capitalizeFirstLetter(String(s.name).trim().replace(/\s+/g, ' '))
+          const cleanLocation = capitalizeFirstLetter(String(s.location).trim().replace(/\s+/g, ' '))
           
           let label = `${cleanName} — ${cleanLocation}`
           if (this.product && this.color) {

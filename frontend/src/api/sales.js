@@ -1,4 +1,5 @@
 import supabase from '../lib/supabase'
+import { capitalizeFirstLetter } from '../lib/textUtils'
 
 const TABLE_NAME = 'sales'
 
@@ -152,8 +153,8 @@ export async function fetchDistinctProducts() {
 
   if (error) throw error
   
-  // Remove duplicates and return product list
-  const uniqueProducts = [...new Set(data.map(item => item.product))]
+  // Remove duplicates and return product list with capitalized first letter
+  const uniqueProducts = [...new Set(data.map(item => capitalizeFirstLetter(item.product)))]
   return uniqueProducts
 }
 
@@ -165,8 +166,8 @@ export async function fetchDistinctStoreNames() {
 
   if (error) throw error
   
-  // Remove duplicates and return store names list
-  const uniqueStoreNames = [...new Set(data.map(item => item.name))]
+  // Remove duplicates and return store names list with capitalized first letter
+  const uniqueStoreNames = [...new Set(data.map(item => capitalizeFirstLetter(item.name)))]
   return uniqueStoreNames
 }
 
@@ -289,7 +290,7 @@ export async function fetchSalesRanking(filters = {}) {
 
   // Convert to array and calculate additional metrics
   let ranking = Array.from(productStats.values()).map(stats => ({
-    product: stats.product,
+    product: capitalizeFirstLetter(stats.product),
     totalRevenue: Math.round(stats.totalRevenue * 100) / 100,
     totalQuantity: stats.totalQuantity,
     storeCount: stats.stores.size,

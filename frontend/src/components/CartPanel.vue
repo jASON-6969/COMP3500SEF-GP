@@ -22,8 +22,8 @@
         </thead>
         <tbody>
           <tr v-for="item in items" :key="item.key">
-            <td>{{ item.product }}</td>
-            <td>{{ item.color }}</td>
+            <td>{{ capitalizeFirstLetter(item.product) }}</td>
+            <td>{{ capitalizeFirstLetter(item.color) }}</td>
             <td>{{ item.storage || '-' }}</td>
             <td v-if="hasEstimates">{{ displayUnitPrice(item.key) }}</td>
             <td v-if="hasEstimates">{{ displaySubtotal(item.key, item.quantity) }}</td>
@@ -58,6 +58,8 @@
 </template>
 
 <script>
+import { capitalizeFirstLetter } from '../lib/textUtils'
+
 export default {
   name: 'CartPanel',
   props: {
@@ -93,6 +95,7 @@ export default {
     }
   },
   methods: {
+    capitalizeFirstLetter,
     onUpdateQty(key, value) {
       const n = parseInt(value, 10)
       this.$emit('update-qty', { key, quantity: Number.isNaN(n) ? 1 : n })

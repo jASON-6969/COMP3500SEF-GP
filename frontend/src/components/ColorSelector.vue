@@ -13,7 +13,6 @@
 
 <script>
 import { fetchColorsByProduct } from '../api/inventory'
-
 export default {
   name: 'ColorSelector',
   props: {

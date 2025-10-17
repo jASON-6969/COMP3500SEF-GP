@@ -82,11 +82,11 @@
                 <v-row no-gutters>
                   <v-col cols="12" md="3">
                     <v-icon :icon="expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"></v-icon>
-                    <span class="ml-2">{{ record.product }}</span>
+                    <span class="ml-2">{{ capitalizeFirstLetter(record.product) }}</span>
                   </v-col>
                   <v-col cols="12" md="2">
                     <span class="text-caption text-grey">Store:</span>
-                    <div class="font-weight-medium">{{ record.name }}</div>
+                    <div class="font-weight-medium">{{ capitalizeFirstLetter(record.name) }}</div>
                   </v-col>
                   <v-col cols="12" md="2">
                     <span class="text-caption text-grey">Qty:</span>
@@ -119,7 +119,7 @@
                         <v-icon>mdi-store</v-icon>
                       </template>
                       <v-list-item-title>Store Name</v-list-item-title>
-                      <v-list-item-subtitle>{{ record.name }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ capitalizeFirstLetter(record.name) }}</v-list-item-subtitle>
                     </v-list-item>
                     
                     <v-list-item>
@@ -127,7 +127,7 @@
                         <v-icon>mdi-map-marker</v-icon>
                       </template>
                       <v-list-item-title>Store Location</v-list-item-title>
-                      <v-list-item-subtitle>{{ record.store_location }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ capitalizeFirstLetter(record.store_location) }}</v-list-item-subtitle>
                     </v-list-item>
                     
                     <v-list-item>
@@ -135,7 +135,7 @@
                         <v-icon>mdi-package-variant</v-icon>
                       </template>
                       <v-list-item-title>Product</v-list-item-title>
-                      <v-list-item-subtitle>{{ record.product }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ capitalizeFirstLetter(record.product) }}</v-list-item-subtitle>
                     </v-list-item>
                     
                     <v-list-item>
@@ -143,7 +143,7 @@
                         <v-icon>mdi-palette</v-icon>
                       </template>
                       <v-list-item-title>Color</v-list-item-title>
-                      <v-list-item-subtitle>{{ record.color }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ capitalizeFirstLetter(record.color) }}</v-list-item-subtitle>
                     </v-list-item>
                   </v-list>
                 </v-col>
@@ -224,6 +224,7 @@
 
 <script>
 import SellingHistoryChart from './SellingHistoryChart.vue'
+import { capitalizeFirstLetter } from '../lib/textUtils'
 
 export default {
   name: 'SalesRecordList',
@@ -276,6 +277,7 @@ export default {
     }
   },
   methods: {
+    capitalizeFirstLetter,
     formatDate(dateString) {
       if (!dateString) return ''
       const date = new Date(dateString)
