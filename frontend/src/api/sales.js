@@ -1,7 +1,71 @@
 import supabase from '../lib/supabase'
-import { calculateDailyRevenue, calculateMonthlyRevenue } from '../lib/revenueUtils'
 
 const TABLE_NAME = 'sales'
+
+
+// 计算日收入数据
+function calculateDailyRevenue(salesData) {
+  if (!Array.isArray(salesData) || salesData.length === 0) {
+    return []
+  }
+  
+  const dailyMap = new Map()
+  
+  salesData.forEach((record, index) => {
+    if (!record || !record.time) {
+      console.warn(`calculateDailyRevenue: Skipping invalid record at index ${index}`)
+      return
+    }
+    
+    const date = new Date(record.time)
+    if (isNaN(date.getTime())) {
+      console.warn(`calculateDailyRevenue: Invalid time format at index ${index}: ${record.time}`)
+      return
+    }
+    
+    const dateKey = date.toISOString().split('T')[0]
+    
+    const price = parseFloat(record.price) || 0
+    const currentRevenue = dailyMap.get(dateKey) || 0
+    dailyMap.set(dateKey, currentRevenue + price)
+  })
+  
+  return Array.from(dailyMap.entries())
+    .map(([date, revenue]) => ({ 
+      date, 
+      revenue: Math.round(revenue * 100) / 100
+    }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+}
+
+// 计算月收入数据
+function calculateMonthlyRevenue(salesData) {
+  if (!Array.isArray(salesData) || salesData.length === 0) {
+    return []
+  }
+  
+  const monthlyMap = new Map()
+  
+  salesData.forEach(record => {
+    if (!record || !record.time) return
+    
+    const date = new Date(record.time)
+    if (isNaN(date.getTime())) return
+    
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    
+    const price = parseFloat(record.price) || 0
+    const currentRevenue = monthlyMap.get(monthKey) || 0
+    monthlyMap.set(monthKey, currentRevenue + price)
+  })
+  
+  return Array.from(monthlyMap.entries())
+    .map(([month, revenue]) => ({ 
+      month, 
+      revenue: Math.round(revenue * 100) / 100
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month))
+}
 
 export async function createSale(saleData) {
   const { data, error } = await supabase
@@ -263,6 +327,105 @@ export async function fetchSalesRanking(filters = {}) {
   }
 }
 
+// 获取销售历史数据用于图表显示
+export async function fetchSalesHistory(filters = {}) {
+  let query = supabase
+    .from(TABLE_NAME)
+    .select('time, price, product, name')
+    .order('time', { ascending: true })
+
+  // 应用日期过滤
+  if (filters.chartType === 'singleDate' && filters.date) {
+    // 单日查询 - 获取指定日期的所有销售记录
+    const startOfDay = new Date(filters.date + 'T00:00:00.000Z')
+    const endOfDay = new Date(filters.date + 'T23:59:59.999Z')
+    
+    query = query
+      .gte('time', startOfDay.toISOString())
+      .lte('time', endOfDay.toISOString())
+  } else if (filters.chartType === 'dateRange' && filters.dateRange && filters.dateRange.length === 2) {
+    // 日期范围查询
+    const [startDate, endDate] = filters.dateRange
+    const startOfDay = new Date(startDate + 'T00:00:00.000Z')
+    const endOfDay = new Date(endDate + 'T23:59:59.999Z')
+    
+    query = query
+      .gte('time', startOfDay.toISOString())
+      .lte('time', endOfDay.toISOString())
+  }
+
+  // 应用产品过滤
+  if (filters.products && filters.products.length > 0) {
+    query = query.in('product', filters.products)
+  }
+
+  // 应用商店过滤
+  if (filters.stores && filters.stores.length > 0) {
+    query = query.in('name', filters.stores)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error fetching sales history:', error)
+    throw new Error('Failed to fetch sales history: ' + error.message)
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // 根据图表类型处理数据
+  if (filters.chartType === 'singleDate') {
+    // 单日模式 - 按小时分组
+    return calculateHourlyRevenue(data)
+  } else {
+    // 日期范围模式 - 按天分组
+    return calculateDailyRevenue(data)
+  }
+}
+
+// 计算小时收入数据
+function calculateHourlyRevenue(salesData) {
+  if (!Array.isArray(salesData) || salesData.length === 0) {
+    return []
+  }
+  
+  const hourlyMap = new Map()
+  
+  salesData.forEach((record, index) => {
+    if (!record || !record.time) {
+      console.warn(`calculateHourlyRevenue: Skipping invalid record at index ${index}`)
+      return
+    }
+    
+    const date = new Date(record.time)
+    if (isNaN(date.getTime())) {
+      console.warn(`calculateHourlyRevenue: Invalid time format at index ${index}: ${record.time}`)
+      return
+    }
+    
+    const hourKey = `${String(date.getHours()).padStart(2, '0')}:00`
+    
+    const price = parseFloat(record.price) || 0
+    const currentRevenue = hourlyMap.get(hourKey) || 0
+    hourlyMap.set(hourKey, currentRevenue + price)
+  })
+  
+  // 生成24小时的数据点，确保所有小时都有数据
+  const hourlyData = []
+  for (let hour = 0; hour < 24; hour++) {
+    const hourKey = `${String(hour).padStart(2, '0')}:00`
+    const revenue = hourlyMap.get(hourKey) || 0
+    hourlyData.push({
+      time: hourKey,
+      revenue: Math.round(revenue * 100) / 100
+    })
+  }
+  
+  return hourlyData
+}
+
 export default {
   createSale,
   fetchSales,
@@ -270,5 +433,6 @@ export default {
   fetchDistinctProducts,
   fetchDistinctStoreNames,
   fetchSalesStats,
-  fetchSalesRanking
+  fetchSalesRanking,
+  fetchSalesHistory
 }
