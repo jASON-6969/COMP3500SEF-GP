@@ -6,7 +6,7 @@
         <v-card class="mb-4">
           <v-card-title class="d-flex align-center">
             <v-icon left size="large" color="primary">mdi-chart-line</v-icon>
-            <h1 class="text-h4">Sales Records Query</h1>
+            <h1 class="text-h4">Sales Record</h1>
             <v-spacer></v-spacer>
             <v-btn
               color="primary"
@@ -18,22 +18,33 @@
               Refresh Data
             </v-btn>
           </v-card-title>
-          <v-card-text>
-            <p class="text-body-1 text-grey-darken-1">
-              View and manage all sales records with filtering by date, product, and store
-            </p>
-          </v-card-text>
         </v-card>
 
-        <!-- Filter Panel -->
+        <!-- Product Selector -->
+        <ProductSelector
+          :multiple="true"
+          @products-change="onProductSelectorChange"
+          class="mb-4"
+        />
+
+        <!-- Income Cards (Monthly/Daily) -->
+        <IncomeCards
+          :stats="salesStats"
+          class="mb-4"
+        />
+
+        <!-- Sales Chart -->
+        <SellingHistoryChart class="mb-4" />
+
+        <!-- Sales Ranking -->
+        <SalesRanking class="mb-4" />
+
+        <!-- Filter Panel (Collapsible) -->
         <SalesRecordFilters
           @filters-change="onFiltersChange"
           @error="onFilterError"
           class="mb-4"
         />
-
-        <!-- Sales Ranking -->
-        <SalesRanking class="mb-4" />
 
         <!-- Sales Records List -->
         <SalesRecordList
@@ -68,6 +79,9 @@
 import SalesRecordFilters from '../components/SalesRecordFilters.vue'
 import SalesRecordList from '../components/SalesRecordList.vue'
 import SalesRanking from '../components/SalesRanking.vue'
+import ProductSelector from '../components/ProductSelector.vue'
+import IncomeCards from '../components/IncomeCards.vue'
+import SellingHistoryChart from '../components/SellingHistoryChart.vue'
 import { 
   fetchSalesWithFilters, 
   fetchSalesStats 
@@ -78,7 +92,10 @@ export default {
   components: {
     SalesRecordFilters,
     SalesRecordList,
-    SalesRanking
+    SalesRanking,
+    ProductSelector,
+    IncomeCards,
+    SellingHistoryChart
   },
   data() {
     return {
@@ -97,6 +114,21 @@ export default {
     await this.loadSalesData()
   },
   methods: {
+    onProductSelectorChange(products) {
+      const filters = {
+        ...this.currentFilters
+      }
+      // Only set products filter if products array is provided and not empty
+      if (products && products.length > 0) {
+        filters.products = products
+      } else {
+        // Remove products filter to show all products
+        delete filters.products
+      }
+      this.currentFilters = filters
+      this.loadSalesData(filters)
+    },
+    
     async onFiltersChange(filters) {
       this.currentFilters = filters
       await this.loadSalesData(filters)

@@ -46,11 +46,6 @@
         </v-col>
       </v-row>
 
-      <!-- Selling History Chart -->
-      <div class="mt-6">
-        <SellingHistoryChart />
-      </div>
-
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-8">
         <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
@@ -223,14 +218,10 @@
 </template>
 
 <script>
-import SellingHistoryChart from './SellingHistoryChart.vue'
 import { capitalizeFirstLetter } from '../lib/textUtils'
 
 export default {
   name: 'SalesRecordList',
-  components: {
-    SellingHistoryChart
-  },
   props: {
     salesRecords: {
       type: Array,

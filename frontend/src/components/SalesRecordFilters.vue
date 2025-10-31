@@ -1,10 +1,19 @@
 <template>
   <v-card>
-    <v-card-title>
+    <v-card-title class="d-flex align-center">
       <v-icon left>mdi-filter</v-icon>
       Filter Conditions
+      <v-spacer></v-spacer>
+      <v-btn
+        icon
+        size="small"
+        variant="text"
+        @click="toggleFold"
+      >
+        <v-icon>{{ isFolded ? 'mdi-chevron-down' : 'mdi-chevron-up' }}</v-icon>
+      </v-btn>
     </v-card-title>
-    <v-card-text>
+    <v-card-text v-show="!isFolded">
       <v-row>
         <!-- Date Filter -->
         <v-col cols="12" md="4">
@@ -131,7 +140,8 @@ export default {
       availableStoreNames: [],
       loadingProducts: false,
       loadingStoreNames: false,
-      loading: false
+      loading: false,
+      isFolded: false
     }
   },
   mounted() {
@@ -243,6 +253,10 @@ export default {
     resetDateFilters() {
       this.firstDate = null
       this.secondDate = null
+    },
+    
+    toggleFold() {
+      this.isFolded = !this.isFolded
     }
   }
 }

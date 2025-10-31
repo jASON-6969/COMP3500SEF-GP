@@ -39,6 +39,41 @@ function calculateDailyRevenue(salesData) {
     .sort((a, b) => new Date(a.date) - new Date(b.date))
 }
 
+// Calculate daily quantity data
+function calculateDailyQuantity(salesData) {
+  if (!Array.isArray(salesData) || salesData.length === 0) {
+    return []
+  }
+  
+  const dailyMap = new Map()
+  
+  salesData.forEach((record, index) => {
+    if (!record || !record.time) {
+      console.warn(`calculateDailyQuantity: Skipping invalid record at index ${index}`)
+      return
+    }
+    
+    const date = new Date(record.time)
+    if (isNaN(date.getTime())) {
+      console.warn(`calculateDailyQuantity: Invalid time format at index ${index}: ${record.time}`)
+      return
+    }
+    
+    const dateKey = date.toISOString().split('T')[0]
+    
+    const quantity = parseInt(record.quantity) || 0
+    const currentQuantity = dailyMap.get(dateKey) || 0
+    dailyMap.set(dateKey, currentQuantity + quantity)
+  })
+  
+  return Array.from(dailyMap.entries())
+    .map(([date, quantity]) => ({ 
+      date, 
+      quantity
+    }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+}
+
 // Calculate monthly revenue data
 function calculateMonthlyRevenue(salesData) {
   if (!Array.isArray(salesData) || salesData.length === 0) {
@@ -53,7 +88,8 @@ function calculateMonthlyRevenue(salesData) {
     const date = new Date(record.time)
     if (isNaN(date.getTime())) return
     
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    // Use UTC to be consistent with daily revenue calculation
+    const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
     
     const price = parseFloat(record.price) || 0
     const currentRevenue = monthlyMap.get(monthKey) || 0
@@ -64,6 +100,36 @@ function calculateMonthlyRevenue(salesData) {
     .map(([month, revenue]) => ({ 
       month, 
       revenue: Math.round(revenue * 100) / 100
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month))
+}
+
+// Calculate monthly quantity data
+function calculateMonthlyQuantity(salesData) {
+  if (!Array.isArray(salesData) || salesData.length === 0) {
+    return []
+  }
+  
+  const monthlyMap = new Map()
+  
+  salesData.forEach(record => {
+    if (!record || !record.time) return
+    
+    const date = new Date(record.time)
+    if (isNaN(date.getTime())) return
+    
+    // Use UTC to be consistent with daily revenue calculation
+    const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+    
+    const quantity = parseInt(record.quantity) || 0
+    const currentQuantity = monthlyMap.get(monthKey) || 0
+    monthlyMap.set(monthKey, currentQuantity + quantity)
+  })
+  
+  return Array.from(monthlyMap.entries())
+    .map(([month, quantity]) => ({ 
+      month, 
+      quantity
     }))
     .sort((a, b) => a.month.localeCompare(b.month))
 }
@@ -213,19 +279,25 @@ export async function fetchSalesStats(filters = {}) {
 
   // Calculate statistics
   const totalRecords = data.length
-  const totalRevenue = data.reduce((sum, record) => sum + (record.price || 0), 0)
-  const totalQuantity = data.reduce((sum, record) => sum + (record.quantity || 0), 0)
+  const totalRevenue = data.reduce((sum, record) => sum + (parseFloat(record.price) || 0), 0)
+  const totalQuantity = data.reduce((sum, record) => sum + (parseInt(record.quantity) || 0), 0)
+  const averageOrderValue = totalRecords > 0 ? totalRevenue / totalRecords : 0
 
   // Calculate daily and monthly revenue
   const dailyRevenue = calculateDailyRevenue(data)
   const monthlyRevenue = calculateMonthlyRevenue(data)
+  const dailyQuantity = calculateDailyQuantity(data)
+  const monthlyQuantity = calculateMonthlyQuantity(data)
 
   return {
     totalRecords,
-    totalRevenue,
+    totalRevenue: Math.round(totalRevenue * 100) / 100,
     totalQuantity,
+    averageOrderValue: Math.round(averageOrderValue * 100) / 100,
     dailyRevenue,
-    monthlyRevenue
+    monthlyRevenue,
+    dailyQuantity,
+    monthlyQuantity
   }
 }
 
