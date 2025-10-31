@@ -5,44 +5,40 @@
       dark
       prominent
     >
+      <v-app-bar-nav-icon
+        @click="drawer = !drawer"
+        color="white"
+      ></v-app-bar-nav-icon>
       <v-toolbar-title>Distributed Inventory and Sales Management System</v-toolbar-title>
-      <v-spacer></v-spacer>
-      
-      <!-- header -->
-      <v-btn
-        :to="{ name: 'Selling' }"
-        color="white"
-        variant="text"
-        class="mr-2"
-      >
-        <v-icon left>mdi-cash-register</v-icon>
-        selling
-      </v-btn>
-      
-      <v-btn
-        :to="{ name: 'Inventory' }"
-        color="white"
-        variant="text"
-        class="mr-2"
-      >
-        <v-icon left>mdi-warehouse</v-icon>
-        Inventory 
-      </v-btn>
-      
-      <v-btn
-        :to="{ name: 'SalesRecord' }"
-        color="white"
-        variant="text"
-        class="mr-2"
-      >
-        <v-icon left>mdi-chart-line</v-icon>
-        sales record
-      </v-btn>
-      
-      <v-btn icon>
-        <v-icon>mdi-account</v-icon>
-      </v-btn>
     </v-app-bar>
+
+    <v-navigation-drawer
+      v-model="drawer"
+      temporary
+      color="primary"
+      dark
+    >
+      <v-list>
+        <v-list-item
+          :to="{ name: 'Selling' }"
+          prepend-icon="mdi-cash-register"
+          title="Selling"
+          @click="drawer = false"
+        ></v-list-item>
+        <v-list-item
+          :to="{ name: 'Inventory' }"
+          prepend-icon="mdi-warehouse"
+          title="Inventory"
+          @click="drawer = false"
+        ></v-list-item>
+        <v-list-item
+          :to="{ name: 'SalesRecord' }"
+          prepend-icon="mdi-chart-line"
+          title="Sales Record"
+          @click="drawer = false"
+        ></v-list-item>
+      </v-list>
+    </v-navigation-drawer>
 
     <v-main>
       <router-view />
@@ -52,7 +48,12 @@
 
 <script>
 export default {
-  name: 'App'
+  name: 'App',
+  data() {
+    return {
+      drawer: false
+    }
+  }
 }
 </script>
 
