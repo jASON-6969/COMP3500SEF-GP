@@ -35,7 +35,7 @@
               v-model="selectedStore"
               :product="selectedProduct"
               :color="selectedColor"
-              :storage="selectedStorage"
+              :storage="normalizedStorage"
             />
           </v-expansion-panel-text>
         </v-expansion-panel>
@@ -90,17 +90,74 @@ export default {
     },
     hasStoreProductColor() {
       return !!this.selectedStore && !!this.selectedProduct && !!this.selectedColor
+    },
+    // Normalize storage: empty string becomes null for products without storage
+    normalizedStorage() {
+      return this.selectedStorage === '' ? null : this.selectedStorage
+    },
+    // Calculate which panel should be active based on current selections
+    computedActivePanel() {
+      if (!this.selectedProduct) return 0
+      if (!this.selectedColor) return 1
+      // If storage has valid options (more than just "(not available)"), show storage panel
+      // Otherwise skip directly to store panel
+      if (this.storageOptionsCount > 1 && !this.selectedStorage) return 2
+      // If storageOptionsCount is 0 or 1 (only "(not available)"), skip to store panel
+      return 3 // Store panel
     }
   },
   watch: {
-    selectedProduct() { this.resetAfterProduct(); this.emitSelection(); this.activePanel = 1 },
-    selectedColor() { this.resetAfterColor(); this.emitSelection(); this.activePanel = 2 },
-    selectedStorage() { this.emitSelection(); this.activePanel = 3 },
-    selectedStore() { this.triggerQuery(); this.activePanel = 3 }
+    selectedProduct() { 
+      this.resetAfterProduct()
+      this.emitSelection()
+      this.$nextTick(() => { this.activePanel = this.computedActivePanel })
+    },
+    selectedColor() { 
+      this.resetAfterColor()
+      this.emitSelection()
+      this.$nextTick(() => { this.activePanel = this.computedActivePanel })
+    },
+    selectedStorage() { 
+      this.emitSelection()
+      this.$nextTick(() => { this.activePanel = this.computedActivePanel })
+    },
+    selectedStore() { 
+      this.triggerQuery()
+      this.$nextTick(() => { this.activePanel = this.computedActivePanel })
+    },
+    storageOptionsCount() {
+      // When storage options change, adjust panel if needed
+      this.$nextTick(() => { 
+        if (this.activePanel === 2 && this.storageOptionsCount === 0) {
+          // If on storage panel but no options, move to store panel
+          this.activePanel = 3
+        }
+      })
+    }
   },
   methods: {
     onStorageOptions(count) {
       this.storageOptionsCount = count
+      // If no valid storage options (only "(not available)"), automatically skip to store panel
+      if (count === 0 || (count === 1 && !this.selectedStorage)) {
+        this.$nextTick(() => {
+          // Ensure storage is cleared and move to store panel
+          if (this.selectedColor && !this.selectedStore) {
+            this.activePanel = 3
+          }
+        })
+      }
+    },
+    reset() {
+      this.selectedProduct = ''
+      this.selectedColor = ''
+      this.selectedStorage = ''
+      this.selectedStore = null
+      this.storageOptionsCount = 0
+      this.quantity = null
+      this.price = null
+      this.error = ''
+      this.activePanel = 0
     },
     resetAfterProduct() {
       this.selectedColor = ''
@@ -122,7 +179,7 @@ export default {
         store: this.selectedStore,
         product: this.selectedProduct,
         color: this.selectedColor,
-        storage: this.selectedStorage
+        storage: this.normalizedStorage
       })
     },
     async triggerQuery() {
@@ -138,8 +195,8 @@ export default {
       this.error = ''
       try {
         const [qty, price] = await Promise.all([
-          fetchQuantitySum(this.selectedStore, this.selectedProduct, this.selectedColor, this.selectedStorage),
-          fetchPrice(this.selectedStore, this.selectedProduct, this.selectedColor, this.selectedStorage)
+          fetchQuantitySum(this.selectedStore, this.selectedProduct, this.selectedColor, this.normalizedStorage),
+          fetchPrice(this.selectedStore, this.selectedProduct, this.selectedColor, this.normalizedStorage)
         ])
         this.quantity = qty
         this.price = price

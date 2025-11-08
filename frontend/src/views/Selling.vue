@@ -7,7 +7,7 @@
             <h1 class="text-h4">Selling</h1>
           </v-card-title>
           <v-card-text>
-            <InventorySearchPanel @change="onSelectionChange" />
+            <InventorySearchPanel ref="inventorySearchPanel" @change="onSelectionChange" />
             
 
             <!-- Quantity Selection - Always show when selectedItem exists -->
@@ -230,12 +230,25 @@ export default {
           this.cart = next
           this.cartMessage = 'Added to cart'
           this.cartMessageType = 'success'
+          // Reset selection to allow user to select another product
+          this.resetSelection()
         }
       } catch (e) {
         this.cartMessage = 'Failed to add to cart'
         this.cartMessageType = 'error'
       } finally {
         this.isAddingToCart = false
+      }
+    },
+    resetSelection() {
+      // Reset selected item and quantity
+      this.selectedItem = null
+      this.selectedQuantity = 1
+      this.customQuantityValue = 1
+      this.sellMessage = ''
+      // Reset inventory search panel to go back to product selection
+      if (this.$refs.inventorySearchPanel) {
+        this.$refs.inventorySearchPanel.reset()
       }
     },
     

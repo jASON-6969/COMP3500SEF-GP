@@ -25,7 +25,7 @@ export default {
     },
     product: { type: String, default: '' },
     color: { type: String, default: '' },
-    storage: { type: [String, Number], default: '' }
+    storage: { type: [String, Number, null], default: null }
   },
   data() {
     return {
