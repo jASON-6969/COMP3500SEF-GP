@@ -59,18 +59,33 @@ export async function fetchColorsByProduct(product) {
 }
 
 // New: fetch distinct storages across all stores for a given product+color
+// Includes null values as a valid option
 export async function fetchStoragesByProductColor(product, color) {
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('storage')
     .ilike('product', product)
     .ilike('color', color)
-    .not('storage', 'is', null)
 
   if (error) throw error
 
-  const set = new Set((data || []).map(r => String(r.storage).trim()))
-  return Array.from(set).sort((a, b) => Number(a) - Number(b))
+  // Process storage values, keeping null as a distinct option
+  const set = new Set()
+  for (const row of (data || [])) {
+    if (row.storage === null || row.storage === undefined) {
+      set.add(null)
+    } else {
+      set.add(String(row.storage).trim())
+    }
+  }
+  
+  // Sort: null first, then numeric values
+  const result = Array.from(set)
+  return result.sort((a, b) => {
+    if (a === null) return -1
+    if (b === null) return 1
+    return Number(a) - Number(b)
+  })
 }
 
 // New: fetch stores for a given product/color/storage with availability flag

@@ -36,11 +36,15 @@ export default {
   },
   computed: {
     displayItems() {
-      return this.items.map(v => (
-        v === '(not available)'
-          ? { label: '(not available)', value: '' }
-          : { label: `${v}GB`, value: v }
-      ))
+      return this.items.map(v => {
+        if (v === '(not available)') {
+          return { label: '(not available)', value: '' }
+        }
+        if (v === null || v === undefined) {
+          return { label: 'NULL', value: null }
+        }
+        return { label: `${v}GB`, value: v }
+      })
     }
   },
   watch: {
@@ -51,14 +55,14 @@ export default {
     async load() {
       if (!this.product || !this.color) {
         this.items = []
-        this.$emit('options', 0)
+        this.$emit('options', { count: 0, items: [] })
         return
       }
       this.loading = true
       try {
         const storages = await fetchStoragesByProductColor(this.product, this.color)
         this.items = (storages && storages.length) ? storages : ['(not available)']
-        this.$emit('options', this.items.length)
+        this.$emit('options', { count: this.items.length, items: this.items })
         if (this.items.length === 0) {
           // Clear selected storage to avoid query issues
           this.$emit('update:modelValue', '')
@@ -67,7 +71,7 @@ export default {
         // eslint-disable-next-line no-console
         console.error('Failed to load storages', err)
         this.items = ['(not available)']
-        this.$emit('options', 1)
+        this.$emit('options', { count: 1, items: this.items })
       } finally {
         this.loading = false
       }
