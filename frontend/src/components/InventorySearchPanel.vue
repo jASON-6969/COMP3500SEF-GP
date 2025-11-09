@@ -99,10 +99,14 @@ export default {
     computedActivePanel() {
       if (!this.selectedProduct) return 0
       if (!this.selectedColor) return 1
+      // If store is already selected, stay on store panel
+      if (this.selectedStore) return 3
+      // If storageOptionsCount is 0, we're still loading - wait and show storage panel
+      // This prevents jumping to store panel before storage options are loaded
+      if (this.storageOptionsCount === 0) return 2
       // If storage has valid options (more than just "(not available)"), show storage panel
-      // Otherwise skip directly to store panel
       if (this.storageOptionsCount > 1 && !this.selectedStorage) return 2
-      // If storageOptionsCount is 0 or 1 (only "(not available)"), skip to store panel
+      // If storageOptionsCount is 1 (only "(not available)"), skip to store panel
       return 3 // Store panel
     }
   },
@@ -128,9 +132,16 @@ export default {
     storageOptionsCount() {
       // When storage options change, adjust panel if needed
       this.$nextTick(() => { 
-        if (this.activePanel === 2 && this.storageOptionsCount === 0) {
-          // If on storage panel but no options, move to store panel
-          this.activePanel = 3
+        // If storage options count is 0 or 1 (only "(not available)"), skip to store panel
+        if (this.storageOptionsCount <= 1) {
+          // Clear selected storage when there are no valid options
+          if (this.selectedStorage) {
+            this.selectedStorage = ''
+          }
+          // If we're on storage panel or should be on storage panel, move to store panel
+          if (this.selectedColor && !this.selectedStore && (this.activePanel === 2 || this.computedActivePanel === 2)) {
+            this.activePanel = 3
+          }
         }
       })
     }
@@ -138,10 +149,14 @@ export default {
   methods: {
     onStorageOptions(count) {
       this.storageOptionsCount = count
-      // If no valid storage options (only "(not available)"), automatically skip to store panel
-      if (count === 0 || (count === 1 && !this.selectedStorage)) {
+      // If no valid storage options (count is 0 or 1 means only "(not available)"), automatically skip to store panel
+      if (count <= 1) {
+        // Clear selected storage when there are no valid options
+        if (this.selectedStorage) {
+          this.selectedStorage = ''
+        }
         this.$nextTick(() => {
-          // Ensure storage is cleared and move to store panel
+          // Move to store panel if we have color selected but not store
           if (this.selectedColor && !this.selectedStore) {
             this.activePanel = 3
           }
