@@ -215,6 +215,29 @@ export default {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* Custom scrollbar styling */
+.product-toggle-group::-webkit-scrollbar {
+  width: 6px;
+}
+
+.product-toggle-group::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.product-toggle-group::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.product-toggle-group::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .product-btn {
@@ -229,5 +252,18 @@ export default {
 .product-btn.v-btn--selected {
   background-color: rgba(var(--v-theme-primary), 0.12) !important;
   color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* Mobile responsive styles for phones */
+@media (max-width: 600px) {
+  .product-toggle-group {
+    gap: 4px;
+  }
+
+  .product-btn {
+    min-width: 70px;
+    padding: 6px 8px;
+    font-size: 0.875rem;
+  }
 }
 </style>
