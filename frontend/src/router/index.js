@@ -28,6 +28,11 @@ const routes = [
     path: '/checkout-confirm',
     name: 'CheckoutConfirm',
     component: CheckoutConfirm
+  },
+  {
+    // Catch-all route: redirect unknown paths to default page
+    path: '/:pathMatch(.*)*',
+    redirect: '/selling'
   }
 ]
 
