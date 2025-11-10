@@ -55,6 +55,13 @@ npm run serve
 
 The application will be available at `http://localhost:8080` and will automatically reload when you make changes to the source files.
 
+### Run tests
+
+```bash
+cd frontend
+npm run test
+```
+
 ## Technology Stack
 
 - **Frontend Framework**: Vue.js 3
