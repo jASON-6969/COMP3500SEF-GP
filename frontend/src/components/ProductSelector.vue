@@ -28,8 +28,9 @@
 </template>
 
 <script>
-import { fetchDistinctProducts as fetchDistinctProductsSales } from '../api/sales'
+import { fetchDistinctProductsRaw as fetchDistinctProductsSalesRaw } from '../api/sales'
 import { fetchDistinctProducts as fetchDistinctProductsInventory } from '../api/inventory'
+import { capitalizeFirstLetter } from '../lib/textUtils'
 
 export default {
   name: 'ProductSelector',
@@ -113,13 +114,22 @@ export default {
         // Use inventory API for single-select (Selling page), sales API for multi-select (SalesRecord)
         const products = this.isSingleSelect 
           ? await fetchDistinctProductsInventory()
-          : await fetchDistinctProductsSales()
+          : await fetchDistinctProductsSalesRaw()
         
         // Map to display-friendly labels and group similar products
         const productMap = new Map()
         
         products.forEach(product => {
-          const lowerProduct = product.toLowerCase()
+          if (typeof product !== 'string') {
+            return
+          }
+          
+          const trimmedProduct = product.trim()
+          if (!trimmedProduct) {
+            return
+          }
+          
+          const lowerProduct = trimmedProduct.toLowerCase()
           let key = ''
           let label = ''
           
@@ -137,16 +147,16 @@ export default {
             label = 'Macbook'
           } else {
             key = lowerProduct
-            label = product
+            label = capitalizeFirstLetter(trimmedProduct)
           }
           
           // For single-select mode (InventorySearchPanel), use actual product names
           // For multi-select mode (SalesRecord), group similar products
           if (this.isSingleSelect) {
             // In single-select mode, create entry with actual product value
-            if (!productMap.has(product)) {
-              productMap.set(product, {
-                value: product, // Use actual product name for database queries
+            if (!productMap.has(trimmedProduct)) {
+              productMap.set(trimmedProduct, {
+                value: trimmedProduct, // Use actual product name for database queries
                 label: label
               })
             }
@@ -156,18 +166,25 @@ export default {
               productMap.set(key, {
                 value: key,
                 label: label,
-                originalProducts: []
+                originalProducts: new Set()
               })
             }
             // Store the original product name for database queries
-            const dbProduct = lowerProduct === 'iphone' ? 'iphone' : 
-                             lowerProduct === 'ipad' ? 'ipad' : 
-                             product.toLowerCase()
-            productMap.get(key).originalProducts.push(dbProduct)
+            const entry = productMap.get(key)
+            entry.originalProducts.add(trimmedProduct)
+            entry.originalProducts.add(lowerProduct)
           }
         })
         
-        this.availableProducts = Array.from(productMap.values())
+        this.availableProducts = Array.from(productMap.values()).map(product => {
+          if (product.originalProducts instanceof Set) {
+            return {
+              ...product,
+              originalProducts: Array.from(product.originalProducts)
+            }
+          }
+          return product
+        })
       } catch (error) {
         console.error('Failed to load products:', error)
       } finally {
@@ -195,7 +212,7 @@ export default {
         const productInfo = this.availableProducts.find(p => p.value === selectedKey)
         if (productInfo) {
           // Add all original products for this category
-          dbProducts.push(...productInfo.originalProducts)
+          dbProducts.push(...(productInfo.originalProducts || [productInfo.value]))
         }
       })
       

@@ -154,45 +154,91 @@ export async function fetchSales() {
   return data
 }
 
-export async function fetchSalesWithFilters(filters) {
+function sanitizeFilterList(list) {
+  if (!Array.isArray(list)) {
+    return []
+  }
+  return [...new Set(
+    list
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+  )]
+}
+
+function applyDateFilters(query, filters = {}) {
+  if (!filters.dateRange || filters.dateRange.length === 0) {
+    return query
+  }
+
+  if (filters.dateRange.length === 1) {
+    const startDate = new Date(filters.dateRange[0])
+    startDate.setHours(0, 0, 0, 0)
+    const endDate = new Date(filters.dateRange[0])
+    endDate.setHours(23, 59, 59, 999)
+    
+    return query
+      .gte('time', startDate.toISOString())
+      .lte('time', endDate.toISOString())
+  }
+
+  if (filters.dateRange.length === 2) {
+    const startDate = new Date(filters.dateRange[0])
+    startDate.setHours(0, 0, 0, 0)
+    const endDate = new Date(filters.dateRange[1])
+    endDate.setHours(23, 59, 59, 999)
+    
+    return query
+      .gte('time', startDate.toISOString())
+      .lte('time', endDate.toISOString())
+  }
+
+  return query
+}
+
+function applyProductFilters(query, products = []) {
+  const cleanProducts = sanitizeFilterList(products)
+  if (cleanProducts.length === 0) {
+    return query
+  }
+
+  return query.in('product', cleanProducts)
+}
+
+function applyStoreFilters(query, stores = [], column = 'name') {
+  const cleanStores = sanitizeFilterList(stores)
+  if (cleanStores.length === 0) {
+    return query
+  }
+
+  return query.in(column, cleanStores)
+}
+
+function applyCommonFilters(query, filters = {}) {
+  let result = query
+
+  if (filters.products && filters.products.length > 0) {
+    result = applyProductFilters(result, filters.products)
+  }
+
+  if (filters.storeNames && filters.storeNames.length > 0) {
+    result = applyStoreFilters(result, filters.storeNames, 'name')
+  }
+
+  if (filters.stores && filters.stores.length > 0) {
+    result = applyStoreFilters(result, filters.stores, 'name')
+  }
+
+  return result
+}
+
+export async function fetchSalesWithFilters(filters = {}) {
   let query = supabase
     .from(TABLE_NAME)
     .select('*')
 
-  // Date filtering
-  if (filters.dateRange) {
-    if (filters.dateRange.length === 1) {
-      // Single day selection
-      const startDate = new Date(filters.dateRange[0])
-      startDate.setHours(0, 0, 0, 0)
-      const endDate = new Date(filters.dateRange[0])
-      endDate.setHours(23, 59, 59, 999)
-      
-      query = query
-        .gte('time', startDate.toISOString())
-        .lte('time', endDate.toISOString())
-    } else if (filters.dateRange.length === 2) {
-      // Date range
-      const startDate = new Date(filters.dateRange[0])
-      startDate.setHours(0, 0, 0, 0)
-      const endDate = new Date(filters.dateRange[1])
-      endDate.setHours(23, 59, 59, 999)
-      
-      query = query
-        .gte('time', startDate.toISOString())
-        .lte('time', endDate.toISOString())
-    }
-  }
-
-  // Product filtering (multiple selection)
-  if (filters.products && filters.products.length > 0) {
-    query = query.in('product', filters.products)
-  }
-
-  // Store name filtering
-  if (filters.storeNames && filters.storeNames.length > 0) {
-    query = query.in('name', filters.storeNames)
-  }
+  query = applyDateFilters(query, filters)
+  query = applyCommonFilters(query, filters)
 
   // Sorting and pagination
   query = query.order('time', { ascending: false })
@@ -211,7 +257,7 @@ export async function fetchSalesWithFilters(filters) {
   return data
 }
 
-export async function fetchDistinctProducts() {
+export async function fetchDistinctProductsRaw() {
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('product')
@@ -219,9 +265,21 @@ export async function fetchDistinctProducts() {
 
   if (error) throw error
   
-  // Remove duplicates and return product list with capitalized first letter
-  const uniqueProducts = [...new Set(data.map(item => capitalizeFirstLetter(item.product)))]
+  // Remove duplicates while preserving original casing from the database
+  const uniqueProducts = [...new Set(
+    data
+      .map(item => item.product)
+      .filter(product => typeof product === 'string' && product.trim().length > 0)
+  )]
+
   return uniqueProducts
+}
+
+export async function fetchDistinctProducts() {
+  const products = await fetchDistinctProductsRaw()
+  const displayProducts = products.map(product => capitalizeFirstLetter(product))
+  // Remove duplicates that may appear after capitalization
+  return [...new Set(displayProducts)]
 }
 
 export async function fetchDistinctStoreNames() {
@@ -242,36 +300,8 @@ export async function fetchSalesStats(filters = {}) {
     .from(TABLE_NAME)
     .select('price, quantity, time')
 
-  // Apply the same filter conditions
-  if (filters.dateRange) {
-    if (filters.dateRange.length === 1) {
-      const startDate = new Date(filters.dateRange[0])
-      startDate.setHours(0, 0, 0, 0)
-      const endDate = new Date(filters.dateRange[0])
-      endDate.setHours(23, 59, 59, 999)
-      
-      query = query
-        .gte('time', startDate.toISOString())
-        .lte('time', endDate.toISOString())
-    } else if (filters.dateRange.length === 2) {
-      const startDate = new Date(filters.dateRange[0])
-      startDate.setHours(0, 0, 0, 0)
-      const endDate = new Date(filters.dateRange[1])
-      endDate.setHours(23, 59, 59, 999)
-      
-      query = query
-        .gte('time', startDate.toISOString())
-        .lte('time', endDate.toISOString())
-    }
-  }
-
-  if (filters.products && filters.products.length > 0) {
-    query = query.in('product', filters.products)
-  }
-
-  if (filters.storeNames && filters.storeNames.length > 0) {
-    query = query.in('name', filters.storeNames)
-  }
+  query = applyDateFilters(query, filters)
+  query = applyCommonFilters(query, filters)
 
   const { data, error } = await query
 
@@ -308,27 +338,8 @@ export async function fetchSalesRanking(filters = {}) {
     .from(TABLE_NAME)
     .select('product, price, quantity, name, time')
 
-  // Apply date filtering
-  if (filters.dateRange && filters.dateRange.length === 2) {
-    const startDate = new Date(filters.dateRange[0])
-    startDate.setHours(0, 0, 0, 0)
-    const endDate = new Date(filters.dateRange[1])
-    endDate.setHours(23, 59, 59, 999)
-    
-    query = query
-      .gte('time', startDate.toISOString())
-      .lte('time', endDate.toISOString())
-  }
-
-  // Apply product filtering
-  if (filters.products && filters.products.length > 0) {
-    query = query.in('product', filters.products)
-  }
-
-  // Apply store filtering
-  if (filters.stores && filters.stores.length > 0) {
-    query = query.in('name', filters.stores)
-  }
+  query = applyDateFilters(query, filters)
+  query = applyCommonFilters(query, filters)
 
   const { data, error } = await query
 
@@ -427,15 +438,7 @@ export async function fetchSalesHistory(filters = {}) {
       .lte('time', endOfDay.toISOString())
   }
 
-  // Apply product filtering
-  if (filters.products && filters.products.length > 0) {
-    query = query.in('product', filters.products)
-  }
-
-  // Apply store filtering
-  if (filters.stores && filters.stores.length > 0) {
-    query = query.in('name', filters.stores)
-  }
+  query = applyCommonFilters(query, filters)
 
   const { data, error } = await query
 
@@ -504,6 +507,7 @@ export default {
   fetchSales,
   fetchSalesWithFilters,
   fetchDistinctProducts,
+  fetchDistinctProductsRaw,
   fetchDistinctStoreNames,
   fetchSalesStats,
   fetchSalesRanking,

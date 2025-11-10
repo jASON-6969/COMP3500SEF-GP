@@ -115,12 +115,22 @@ export default {
     },
     
     percentageChange() {
-      if (!this.previousPeriodData || !this.currentAmount) return 0
+      const previous = this.previousPeriodData
+      const current = this.currentAmount
       
-      if (this.previousPeriodData === 0) return this.currentAmount > 0 ? 100 : 0
+      if (previous === null || previous === undefined || current === null || current === undefined) {
+        return 0
+      }
       
-      const change = ((this.currentAmount - this.previousPeriodData) / this.previousPeriodData) * 100
-      return Math.round(change * 10) / 10
+      if (previous === 0) {
+        if (current === 0) return 0
+        return 100
+      }
+      
+      const change = ((current - previous) / Math.abs(previous)) * 100
+      const rounded = Math.round(change * 10) / 10
+      
+      return Object.is(rounded, -0) ? 0 : rounded
     },
     
     comparisonText() {
@@ -206,7 +216,7 @@ export default {
       if (this.viewMode === 'monthly') {
         // Compare with previous month
         if (!this.stats.monthlyRevenue || this.stats.monthlyRevenue.length === 0) {
-          this.previousPeriodData = 0
+          this.previousPeriodData = null
           return
         }
         // Use UTC to match the API calculation
@@ -214,11 +224,13 @@ export default {
         const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
         const prevMonthKey = `${prevMonth.getUTCFullYear()}-${String(prevMonth.getUTCMonth() + 1).padStart(2, '0')}`
         const prevMonthData = this.stats.monthlyRevenue.find(m => m.month === prevMonthKey)
-        this.previousPeriodData = prevMonthData?.revenue || 0
+        this.previousPeriodData = typeof prevMonthData?.revenue === 'number'
+          ? prevMonthData.revenue
+          : null
       } else {
         // Compare with yesterday
         if (!this.stats.dailyRevenue || this.stats.dailyRevenue.length === 0) {
-          this.previousPeriodData = 0
+          this.previousPeriodData = null
           return
         }
         // Use UTC to match the API calculation
@@ -226,7 +238,9 @@ export default {
         yesterday.setUTCDate(yesterday.getUTCDate() - 1)
         const yesterdayStr = yesterday.toISOString().split('T')[0]
         const yesterdayData = this.stats.dailyRevenue.find(d => d.date === yesterdayStr)
-        this.previousPeriodData = yesterdayData?.revenue || 0
+        this.previousPeriodData = typeof yesterdayData?.revenue === 'number'
+          ? yesterdayData.revenue
+          : null
       }
     },
     
